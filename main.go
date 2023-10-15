@@ -12,13 +12,10 @@ import (
 )
 
 func writeProgramToFile(program, filename string) error {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0666)
 	if err != nil {
-		fmt.Println("File does not exists or cannot be created")
+		fmt.Println("File does not exist or cannot be created")
 		return err
-	}
-	if err := os.Truncate(filename, 0); err != nil {
-		fmt.Printf("Failed to truncate: %v", err)
 	}
 	defer file.Close()
 
@@ -32,28 +29,29 @@ func writeProgramToFile(program, filename string) error {
 func main() {
 
 	//program := `while True: input()`
-	program := `x = input()
-y = input()
-print("Hello", x, y)`
+// 	program := `x = input()
+// y = input()
+// print("Hello", x, y)`
 	//program := `print("Hello")`
 	//program := `while True: x = 0`
 	//print("Hello")`
-	filename := "test.py"
-	err := writeProgramToFile(program, filename)
-	if err != nil {
-		return
-	}
+	// filename := "./temp/test.py"
+	// err := writeProgramToFile(program, filename)
+	// if err != nil {
+	// 	return
+	// }
 
 	ctx, _ := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer r.Close()
-	echo := exec.CommandContext(ctx, "echo", "-e", `John\nHarris`)
+	echo := exec.CommandContext(ctx, "echo", "-e", `Joe\nBloggs`)
 	echo.Stdout = w
 	err = echo.Start()
 	if err != nil {
@@ -62,7 +60,12 @@ print("Hello", x, y)`
 	}
 	defer echo.Wait()
 	w.Close()
-	code := exec.CommandContext(ctx, "python", filename)
+	code := exec.CommandContext(ctx, "python3", "test.py")
+	code.Dir = "./temp/"
+	// code.SysProcAttr = &syscall.SysProcAttr{}
+	// uid := 1001
+	// gid := 1001
+	// code.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), NoSetGroups: true}
 	code.Stdin = r
 	code.Stdout = &out
 	code.Stderr = &stderr
