@@ -29,9 +29,9 @@ func writeProgramToFile(program, filename string) error {
 func main() {
 
 	//program := `while True: input()`
-// 	program := `x = input()
-// y = input()
-// print("Hello", x, y)`
+	// 	program := `x = input()
+	// y = input()
+	// print("Hello", x, y)`
 	//program := `print("Hello")`
 	//program := `while True: x = 0`
 	//print("Hello")`
@@ -62,13 +62,18 @@ func main() {
 	w.Close()
 	code := exec.CommandContext(ctx, "python3", "test.py")
 	code.Dir = "./temp/"
-	// code.SysProcAttr = &syscall.SysProcAttr{}
-	// uid := 1001
-	// gid := 1001
-	// code.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), NoSetGroups: true}
+	code.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	uid := 1001
+	gid := 1001
+	code.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid), NoSetGroups: true}
 	code.Stdin = r
 	code.Stdout = &out
 	code.Stderr = &stderr
+	go func() {
+		<-ctx.Done()
+
+		_ = syscall.Kill(-code.Process.Pid, syscall.SIGKILL)
+	}()
 	if err := code.Start(); err != nil {
 		fmt.Println("Error with start:", err)
 		//return
@@ -77,6 +82,6 @@ func main() {
 		fmt.Println("Error with wait:", err)
 	}
 	fmt.Println("Stdout:", out.String())
-	fmt.Println("Stderr:", stderr.String())
+	//fmt.Println("Stderr:", stderr.String())
 	fmt.Printf("Usage: %+v", code.ProcessState.SysUsage().(*syscall.Rusage))
 }
