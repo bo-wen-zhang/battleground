@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 	fmt.Println("Hello")
-	res, err := w.ExecuteSolution(input, "test_scripts/helloworld.py")
+	res, err := w.ExecuteSolution(input, "test_scripts/hello_world.py")
 	if err != nil {
 		fmt.Println(err)
 		fmt.Println("Stderr:", res.Stderr.String())
