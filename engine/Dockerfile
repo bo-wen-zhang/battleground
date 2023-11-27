@@ -1,3 +1,5 @@
+#sudo docker build -t battleground-engine .
+#sudo docker run battleground-engine
 FROM golang:1.19.2-bullseye
 
 ENV USERNAME=worker_user
