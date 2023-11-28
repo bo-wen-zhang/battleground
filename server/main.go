@@ -3,11 +3,13 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
+	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -20,33 +22,13 @@ func main() {
 		log.Fatal(err, " :unable to init client")
 	}
 
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-	defer tw.Close()
-
 	dockerFile := "Dockerfile"
-	dockerFileReader, err := os.Open("../engine/Dockerfile")
-	if err != nil {
-		log.Fatal(err, " :unable to open Dockerfile")
-	}
-	readDockerFile, err := io.ReadAll(dockerFileReader)
-	if err != nil {
-		log.Fatal(err, " :unable to read dockerfile")
-	}
+	contextDir := "../engine"
 
-	tarHeader := &tar.Header{
-		Name: dockerFile,
-		Size: int64(len(readDockerFile)),
-	}
-	err = tw.WriteHeader(tarHeader)
+	dockerFileTarReader, err := createTarReader(contextDir)
 	if err != nil {
-		log.Fatal(err, " :unable to write tar header")
+		log.Fatal(err, " :unable to create tar reader")
 	}
-	_, err = tw.Write(readDockerFile)
-	if err != nil {
-		log.Fatal(err, " :unable to write tar body")
-	}
-	dockerFileTarReader := bytes.NewReader(buf.Bytes())
 
 	imageBuildResponse, err := cli.ImageBuild(
 		ctx,
@@ -63,63 +45,82 @@ func main() {
 	if err != nil {
 		log.Fatal(err, " :unable to read image build response")
 	}
+
+	defer imageBuildResponse.Body.Close()
+
+	buildOutput, err := io.ReadAll(imageBuildResponse.Body)
+	if err != nil {
+		fmt.Println("Error reading build output:", err)
+		return
+	}
+	fmt.Println(string(buildOutput))
+
+	containerRunRes, err := cli.ContainerCreate(context.Background(), nil, nil, nil, nil, "")
+	if err != nil {
+		fmt.Println("Error creating container:", err)
+		return
+	}
+
+	err = cli.ContainerStart(context.Background(), containerRunRes.ID, types.ContainerStartOptions{})
+	if err != nil {
+		fmt.Println("Error starting container:", err)
+		return
+	}
+	fmt.Printf("Docker container %s is running...\n", containerRunRes.ID)
 }
 
-// package main
+func createTarReader(sourceDir string) (io.Reader, error) {
+	r, w := io.Pipe()
 
-// import (
-// 	"context"
-// 	"fmt"
-// 	"io"
-// 	"os"
-// 	"archive/tar"
+	go func() {
+		defer w.Close()
 
-// 	"github.com/docker/docker/api/types"
-// 	"github.com/docker/docker/client"
-// )
+		gzipWriter := gzip.NewWriter(w)
+		defer gzipWriter.Close()
 
-// func main() {
-// 	dockerfilePath := "../engine/Dockerfile"
-// 	contextPath, err := tar.createTarArchive("../engine/")
-// 	if err != nil {
-// 		fmt.Println("Error opening context path:", err)
-// 		return
-// 	}
-// 	defer contextPath.Close()
+		tarWriter := tar.NewWriter(gzipWriter)
+		defer tarWriter.Close()
 
-// 	cli, err := client.NewEnvClient()
-// 	if err != nil {
-// 		fmt.Println("Error creating Docker client:", err)
-// 		return
-// 	}
+		err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 
-// 	imageBuildRes, err := cli.ImageBuild(context.Background(), contextPath, types.ImageBuildOptions{
-// 		Dockerfile: dockerfilePath,
-// 		//Context:    io.NopCloser(os.Stdin),
-// 	})
-// 	if err != nil {
-// 		fmt.Println("Error building Docker image:", err)
-// 		return
-// 	}
-// 	defer imageBuildRes.Body.Close()
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
 
-// 	buildOutput, err := io.ReadAll(imageBuildRes.Body)
-// 	if err != nil {
-// 		fmt.Println("Error reading build output:", err)
-// 		return
-// 	}
-// 	fmt.Println(string(buildOutput))
+			relPath, err := filepath.Rel(sourceDir, path)
+			if err != nil {
+				return err
+			}
+			header.Name = relPath
 
-// 	containerRunRes, err := cli.ContainerCreate(context.Background(), nil, nil, nil, nil, "")
-// 	if err != nil {
-// 		fmt.Println("Error creating container:", err)
-// 		return
-// 	}
+			if err := tarWriter.WriteHeader(header); err != nil {
+				return err
+			}
 
-// 	err = cli.ContainerStart(context.Background(), containerRunRes.ID, types.ContainerStartOptions{})
-// 	if err != nil {
-// 		fmt.Println("Error starting container:", err)
-// 		return
-// 	}
-// 	fmt.Printf("Docker container %s is running...\n", containerRunRes.ID)
-// }
+			if !info.IsDir() {
+				file, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
+
+				_, err = io.Copy(tarWriter, file)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			w.CloseWithError(err)
+		}
+	}()
+
+	return r, nil
+}
