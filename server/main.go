@@ -7,17 +7,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
 func main() {
 	ctx := context.Background()
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatal(err, " :unable to init client")
 	}
@@ -36,7 +38,7 @@ func main() {
 		types.ImageBuildOptions{
 			Context:    dockerFileTarReader,
 			Dockerfile: dockerFile,
-			Remove:     true})
+			Tags:       []string{"battleground-engine"}})
 	if err != nil {
 		log.Fatal(err, " :unable to build docker image")
 	}
@@ -55,18 +57,23 @@ func main() {
 	}
 	fmt.Println(string(buildOutput))
 
-	containerRunRes, err := cli.ContainerCreate(context.Background(), nil, nil, nil, nil, "")
+	containerCreateResponse, err := cli.ContainerCreate(ctx, &container.Config{
+		Image:        "battleground-engine:latest",
+		AttachStdout: true,
+	}, nil, nil, nil, "")
 	if err != nil {
 		fmt.Println("Error creating container:", err)
 		return
 	}
 
-	err = cli.ContainerStart(context.Background(), containerRunRes.ID, types.ContainerStartOptions{})
+	err = cli.ContainerStart(ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
+
 	if err != nil {
 		fmt.Println("Error starting container:", err)
 		return
 	}
-	fmt.Printf("Docker container %s is running...\n", containerRunRes.ID)
+
+	fmt.Printf("Docker container %s is running...\n", containerCreateResponse.ID)
 }
 
 func createTarReader(sourceDir string) (io.Reader, error) {
@@ -81,12 +88,16 @@ func createTarReader(sourceDir string) (io.Reader, error) {
 		tarWriter := tar.NewWriter(gzipWriter)
 		defer tarWriter.Close()
 
-		err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		err := filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 
-			header, err := tar.FileInfoHeader(info, info.Name())
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			header, err := tar.FileInfoHeader(info, d.Name())
 			if err != nil {
 				return err
 			}
@@ -95,13 +106,14 @@ func createTarReader(sourceDir string) (io.Reader, error) {
 			if err != nil {
 				return err
 			}
+
 			header.Name = relPath
 
 			if err := tarWriter.WriteHeader(header); err != nil {
 				return err
 			}
 
-			if !info.IsDir() {
+			if !d.IsDir() {
 				file, err := os.Open(path)
 				if err != nil {
 					return err
@@ -120,7 +132,60 @@ func createTarReader(sourceDir string) (io.Reader, error) {
 		if err != nil {
 			w.CloseWithError(err)
 		}
+
 	}()
 
 	return r, nil
+
+	// go func() {
+	// 	defer w.Close()
+
+	// 	gzipWriter := gzip.NewWriter(w)
+	// 	defer gzipWriter.Close()
+
+	// 	tarWriter := tar.NewWriter(gzipWriter)
+	// 	defer tarWriter.Close()
+
+	// 	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+	// 		if err != nil {
+	// 			return err
+	// 		}
+
+	// 		header, err := tar.FileInfoHeader(info, info.Name())
+	// 		if err != nil {
+	// 			return err
+	// 		}
+
+	// 		relPath, err := filepath.Rel(sourceDir, path)
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		header.Name = relPath
+
+	// 		if err := tarWriter.WriteHeader(header); err != nil {
+	// 			return err
+	// 		}
+
+	// 		if !info.IsDir() {
+	// 			file, err := os.Open(path)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			defer file.Close()
+
+	// 			_, err = io.Copy(tarWriter, file)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 		}
+
+	// 		return nil
+	// 	})
+
+	// 	if err != nil {
+	// 		w.CloseWithError(err)
+	// 	}
+	// }()
+
+	// return r, nil
 }
