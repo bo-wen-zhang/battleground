@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 type Orchestrator struct {
@@ -28,6 +30,7 @@ func NewOrchestrator() (*Orchestrator, error) {
 	}
 	return &Orchestrator{
 		client: cli,
+		ctx:    context.Background(),
 	}, nil
 }
 
@@ -99,5 +102,30 @@ func (o *Orchestrator) RemoveWorker(workerID string) error {
 	}
 
 	log.Printf("Worker %s successfully removed.\n", workerID)
+	return nil
+}
+
+func (o *Orchestrator) ContainerLogs() error {
+	statusCh, errCh := o.client.ContainerWait(o.ctx, o.WorkerIDs[0], container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			fmt.Println("Error waiting for container:", err)
+			return err
+		}
+	case <-statusCh:
+	}
+
+	out, err := o.client.ContainerLogs(o.ctx, o.WorkerIDs[0], types.ContainerLogsOptions{ShowStdout: true})
+	if err != nil {
+		fmt.Println("Error getting container logs:", err)
+		return err
+	}
+
+	_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
+	if err != nil {
+		fmt.Println("Error copying container logs to terminal:", err)
+		return err
+	}
 	return nil
 }

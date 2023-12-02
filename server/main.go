@@ -1,18 +1,15 @@
 // https://stackoverflow.com/questions/38804313/build-docker-image-from-go-code
-package server
+package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/stdcopy"
+	"battleground-server/server"
 )
 
 func main() {
 
-	o, err := NewOrchestrator()
+	o, err := server.NewOrchestrator()
 	if err != nil {
 		return
 	}
@@ -26,24 +23,14 @@ func main() {
 	fmt.Print(buildOutput)
 
 	err = o.CreateWorker("battleground-engine")
-
-	statusCh, errCh := o.client.ContainerWait(o.ctx, o.WorkerIDs[0], container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			fmt.Println("Error waiting for container:", err)
-			return
-		}
-	case <-statusCh:
-	}
-
-	out, err := o.client.ContainerLogs(o.ctx, o.WorkerIDs[0], types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
-		fmt.Println("Error getting container logs:", err)
 		return
 	}
 
-	stdcopy.StdCopy(os.Stdout, os.Stderr, out)
+	err = o.ContainerLogs()
+	if err != nil {
+		return
+	}
 
 	o.RemoveWorker(o.WorkerIDs[0])
 }
