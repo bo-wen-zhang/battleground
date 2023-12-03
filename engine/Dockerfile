@@ -21,5 +21,5 @@ RUN useradd -r -u $USER_UID -g $USER_GID $USERNAME
 RUN chmod -R 755 . 
 EXPOSE 8080
 
-#CMD ["ls", "-R"]
+#go test -v ./worker/worker_test.go
 ENTRYPOINT ["go", "test", "-v", "./worker/worker_test.go"]

@@ -36,11 +36,12 @@ func (w *worker) WriteSolutionInput(s string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer read.Close()
-	echo := exec.CommandContext(ctx, "echo", "-e", `Joe\nBloggs`)
+	//defer read.Close()
+	echo := exec.CommandContext(ctx, "echo", "-e", s)
 	echo.Stdout = write
 	if err := echo.Start(); err != nil {
 		fmt.Println("Error with echo:", err)
+		read.Close()
 		return nil, err
 	}
 	defer echo.Wait()
@@ -51,6 +52,8 @@ func (w *worker) WriteSolutionInput(s string) (*os.File, error) {
 func (w *worker) ExecuteSolution(solutionInput *os.File, solutionPath string) (*codeResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Millisecond)
 	defer cancel()
+	//originally I closed the os.File handle in the WriteSolutionInput method
+	defer solutionInput.Close()
 
 	res := &codeResult{
 		Stdout: new(bytes.Buffer),

@@ -46,7 +46,24 @@ func TestCreateFile(t *testing.T) {
 			t.Log(err)
 			t.Fatal()
 		}
+	}
+}
 
+func TestWriteInput(t *testing.T) {
+	w := worker.NewWorker(1)
+	input, err := w.WriteSolutionInput("Joe\nBloggs")
+	if err != nil {
+		t.Fatal("Error writing input.")
+	}
+	res, err := w.ExecuteSolution(input, "../test_scripts/print_input.py")
+	if err != nil {
+		t.Fatal("Error executing program:", res)
+	}
+	expected := "Hello Joe Bloggs"
+	actual := strings.TrimSpace(res.Stdout.String())
+
+	if actual != expected {
+		t.Errorf("Expected %v got %v instead", expected, actual)
 	}
 
 }
