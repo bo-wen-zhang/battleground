@@ -1,10 +1,15 @@
 package main
 
 import (
-	"battleground-engine/worker"
+	job_handler "battleground-engine/job-handler"
 	"bufio"
+	"context"
 	"fmt"
+	"log"
+	"net"
 	"os"
+
+	"google.golang.org/grpc"
 )
 
 func writeProgramToFile(program, filename string) error {
@@ -22,22 +27,30 @@ func writeProgramToFile(program, filename string) error {
 	return nil
 }
 
+type myJobServer struct {
+	job_handler.UnimplementedJobServer
+}
+
+func (s *myJobServer) Create(context.Context, *job_handler.CreateRequest) (*job_handler.CreateResponse, error) {
+	return &job_handler.CreateResponse{
+		Stdout: "",
+		Stderr: "",
+		Error:  "",
+	}, nil
+}
+
 func main() {
 
-	w := worker.NewWorker(1)
-	fmt.Println("Hello")
-	input, err := w.WriteSolutionInput("")
+	lis, err := net.Listen("tcp", ":8089")
 	if err != nil {
-		fmt.Print(err)
-		return
+		log.Fatal("Cannot create listener:", err)
 	}
-	fmt.Println("Hello")
-	res, err := w.ExecuteSolution(input, "test_scripts/hello_world.py")
+	serverRegistrar := grpc.NewServer()
+	service := &myJobServer{}
+
+	job_handler.RegisterJobServer(serverRegistrar, service)
+	err = serverRegistrar.Serve(lis)
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println("Stderr:", res.Stderr.String())
-		return
+		log.Fatal("Cannot serve:", err)
 	}
-	fmt.Println("Hello")
-	fmt.Println("Stdout:", res.Stdout.String())
 }
