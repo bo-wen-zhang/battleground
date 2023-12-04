@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -31,7 +32,7 @@ func NewWorker(timeout float32) *Worker {
 func (w *Worker) WriteProgramToFile(program []byte, filename string) error {
 	err := os.WriteFile(filename, program, 0644)
 	if err != nil {
-		fmt.Println("File does not exist or cannot be created")
+		log.Print("File does not exist or cannot be created")
 		return err
 	}
 
@@ -99,7 +100,4 @@ func (w *Worker) ExecuteSolution(solutionInput *os.File, solutionPath string) (*
 	}
 
 	return res, nil
-	//fmt.Println("Stdout:", out.String())
-	//fmt.Println("Stderr:", stderr.String())
-	//fmt.Printf("Usage: %+v", cmd.ProcessState.SysUsage().(*syscall.Rusage))
 }

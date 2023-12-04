@@ -19,7 +19,5 @@ RUN go build -o /battleground-engine
 RUN groupadd -r -g $USER_GID $USERNAME 
 RUN useradd -r -u $USER_UID -g $USER_GID $USERNAME
 RUN chmod -R 755 . 
-EXPOSE 8080
 
-#go test -v ./worker/worker_test.go
-ENTRYPOINT ["go", "test", "-v", "./worker/worker_test.go"]
+#EXPOSE 8089 <- exposing programmatically

@@ -2,27 +2,33 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"battleground-server/server"
 )
 
 func main() {
+	var cfg server.Config
 
-	o, err := server.NewOrchestrator()
+	flag.StringVar(&cfg.Mode, "mode", "development", "Mode (development|testing)")
+	flag.Parse()
+
+	o, err := server.NewOrchestrator(cfg)
 	if err != nil {
 		return
 	}
 
+	imageName := "battleground-engine"
 	dockerFileName := "Dockerfile"
 	contextDirSrc := "../engine"
-	buildOutput, err := o.BuildImage(dockerFileName, contextDirSrc, "battleground-engine")
+	buildOutput, err := o.BuildImage(dockerFileName, contextDirSrc, imageName)
 	if err != nil {
 		return
 	}
 	fmt.Print(buildOutput)
 
-	err = o.CreateWorker("battleground-engine")
+	err = o.CreateWorker(imageName)
 	if err != nil {
 		return
 	}

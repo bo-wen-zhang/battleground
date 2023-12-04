@@ -3,6 +3,7 @@ package main
 import (
 	job_handler "battleground-engine/job-handler"
 	"context"
+	"fmt"
 	"log"
 	"net"
 
@@ -40,12 +41,11 @@ func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest
 	return &job_handler.CreateResponse{
 		Stdout: res.Stdout.String(),
 		Stderr: res.Stderr.String(),
-		Error:  "",
+		Error:  fmt.Sprint(err),
 	}, nil
 }
 
 func main() {
-
 	lis, err := net.Listen("tcp", ":8089")
 	if err != nil {
 		log.Fatal("Cannot create listener:", err)
