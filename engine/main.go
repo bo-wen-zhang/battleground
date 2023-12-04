@@ -2,39 +2,44 @@ package main
 
 import (
 	job_handler "battleground-engine/job-handler"
-	"bufio"
 	"context"
-	"fmt"
 	"log"
 	"net"
-	"os"
+
+	"battleground-engine/worker"
 
 	"google.golang.org/grpc"
 )
 
-func writeProgramToFile(program, filename string) error {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0666)
-	if err != nil {
-		fmt.Println("File does not exist or cannot be created")
-		return err
-	}
-	defer file.Close()
-
-	w := bufio.NewWriter(file)
-	fmt.Fprintf(w, "%v\n", program)
-
-	w.Flush()
-	return nil
-}
-
 type myJobServer struct {
 	job_handler.UnimplementedJobServer
+	worker worker.Worker
 }
 
-func (s *myJobServer) Create(context.Context, *job_handler.CreateRequest) (*job_handler.CreateResponse, error) {
+func NewJobServer() *myJobServer {
+	return &myJobServer{
+		worker: *worker.NewWorker(1),
+	}
+}
+
+func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest) (*job_handler.CreateResponse, error) {
+
+	err := s.worker.WriteProgramToFile([]byte(req.SourceCode), "test.py")
+	if err != nil {
+		log.Fatal("Error writing program to file.")
+	}
+	input, err := s.worker.WriteSolutionInput(req.Input)
+	if err != nil {
+		log.Fatal("Error writing input.")
+	}
+	res, err := s.worker.ExecuteSolution(input, "test.py")
+	if err != nil {
+		log.Println("Error executing program:", res)
+	}
+
 	return &job_handler.CreateResponse{
-		Stdout: "",
-		Stderr: "",
+		Stdout: res.Stdout.String(),
+		Stderr: res.Stderr.String(),
 		Error:  "",
 	}, nil
 }
@@ -53,4 +58,5 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot serve:", err)
 	}
+	log.Println("Serving...")
 }
