@@ -85,7 +85,8 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 	if o.config.Mode == "testing" {
 		entryPoint = []string{"go", "test", "-v", "./worker/worker_test.go"}
 	} else if o.config.Mode == "development" {
-		entryPoint = []string{"go", "run", "main.go"}
+		//entryPoint = []string{"go", "run", "main.go"}
+		entryPoint = []string{"./battleground-engine"}
 	} else {
 		log.Fatal("Mode (testing|development) configured incorrectly.")
 	}
@@ -94,9 +95,9 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 		Image:      imageName,
 		Tty:        false,
 		Entrypoint: entryPoint,
-		// ExposedPorts: nat.PortSet{
-		// 	"8089/tcp": struct{}{},
-		// },
+		ExposedPorts: nat.PortSet{
+			"8089/tcp": struct{}{},
+		},
 	}, &container.HostConfig{
 		PortBindings: nat.PortMap{
 			"8089/tcp": []nat.PortBinding{
@@ -129,7 +130,7 @@ func (o *Orchestrator) RemoveWorker(workerID string) error {
 		RemoveVolumes: true,
 		Force:         true})
 	if err != nil {
-		log.Printf("Error removing container:", err, ": unable to remove worker %s")
+		log.Println("Error removing container:", err, ": unable to remove worker")
 		return err
 	}
 

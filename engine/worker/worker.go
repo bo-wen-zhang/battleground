@@ -91,11 +91,11 @@ func (w *Worker) ExecuteSolution(solutionInput *os.File, solutionPath string) (*
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}()
 	if err := cmd.Start(); err != nil {
-		//fmt.Println("Error with start:", err)
+		log.Println("Error with start:", err)
 		return res, err
 	}
 	if err := cmd.Wait(); err != nil {
-		//fmt.Println("Error with wait:", err)
+		log.Println("Error with wait:", err)
 		return res, err
 	}
 

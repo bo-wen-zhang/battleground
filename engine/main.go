@@ -24,7 +24,7 @@ func NewJobServer() *myJobServer {
 }
 
 func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest) (*job_handler.CreateResponse, error) {
-
+	log.Println("Top of Create")
 	err := s.worker.WriteProgramToFile([]byte(req.SourceCode), "test.py")
 	if err != nil {
 		log.Fatal("Error writing program to file.")
@@ -46,6 +46,7 @@ func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest
 }
 
 func main() {
+	fmt.Print("Engine started...")
 	lis, err := net.Listen("tcp", ":8089")
 	if err != nil {
 		log.Fatal("Cannot create listener:", err)
