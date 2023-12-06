@@ -92,12 +92,17 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 	}
 
 	containerCreateResponse, err := o.client.ContainerCreate(o.ctx, &container.Config{
-		Image:      imageName,
-		Tty:        false,
+		Image: imageName,
+		//Tty:        false,
 		Entrypoint: entryPoint,
 		ExposedPorts: nat.PortSet{
 			"8089/tcp": struct{}{},
 		},
+		AttachStderr: true,
+		AttachStdin:  true,
+		Tty:          true,
+		AttachStdout: true,
+		OpenStdin:    true,
 	}, &container.HostConfig{
 		PortBindings: nat.PortMap{
 			"8089/tcp": []nat.PortBinding{
@@ -139,6 +144,22 @@ func (o *Orchestrator) RemoveWorker(workerID string) error {
 }
 
 func (o *Orchestrator) ContainerLogs() error {
+
+	waiter, err := o.client.ContainerAttach(o.ctx, o.WorkerIDs[0], types.ContainerAttachOptions{
+		Stderr: true,
+		Stdout: true,
+		Stdin:  true,
+		Stream: true,
+	})
+	if err != nil {
+		fmt.Println("Error attaching:", err)
+		return err
+	}
+
+	go io.Copy(os.Stdout, waiter.Reader)
+	go io.Copy(os.Stderr, waiter.Reader)
+	go io.Copy(waiter.Conn, os.Stdin)
+
 	statusCh, errCh := o.client.ContainerWait(o.ctx, o.WorkerIDs[0], container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
