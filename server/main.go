@@ -4,8 +4,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 
 	"battleground-server/server"
+
+	"github.com/rs/zerolog"
 )
 
 func main() {
@@ -14,7 +17,19 @@ func main() {
 	flag.StringVar(&cfg.Mode, "mode", "development", "Mode (development|testing)")
 	flag.Parse()
 
-	o, err := server.NewOrchestrator(cfg)
+	logFile, err := os.OpenFile(
+		"battleground_logs.log",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		0644,
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+
+	logger := zerolog.New(logFile).With().Timestamp().Logger()
+
+	o, err := server.NewOrchestrator(cfg, logger)
 	if err != nil {
 		return
 	}

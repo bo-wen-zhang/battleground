@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -13,8 +14,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/rs/zerolog"
 )
 
 type Config struct {
@@ -28,25 +29,27 @@ type Orchestrator struct {
 	client    *client.Client
 	ctx       context.Context
 	config    Config
+	logger    zerolog.Logger
 }
 
-func NewOrchestrator(cfg Config) (*Orchestrator, error) {
+func NewOrchestrator(cfg Config, logger zerolog.Logger) (*Orchestrator, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		log.Fatal(err, " :unable to init client")
+		logger.Fatal().Err(err).Msg("Unable to init client")
 		return &Orchestrator{}, err
 	}
 	return &Orchestrator{
 		client: cli,
 		ctx:    context.Background(),
 		config: cfg,
+		logger: logger,
 	}, nil
 }
 
 func (o *Orchestrator) BuildImage(dockerFileName, contextDirSrc, imageName string) (string, error) {
 	dockerFileTarReader, err := util.CreateTarReader(contextDirSrc)
 	if err != nil {
-		log.Print(err, " :unable to create tar reader")
+		o.logger.Fatal().Err(err).Msg("Unable to tarball build context")
 		return "", err
 	}
 
@@ -58,7 +61,7 @@ func (o *Orchestrator) BuildImage(dockerFileName, contextDirSrc, imageName strin
 			Dockerfile: dockerFileName,
 			Tags:       []string{imageName}})
 	if err != nil {
-		log.Print(err, " :unable to build docker image")
+		o.logger.Fatal().Err(err).Msg("Unable to build image")
 		return "", err
 	}
 	defer imageBuildResponse.Body.Close()
@@ -75,13 +78,14 @@ func (o *Orchestrator) BuildImage(dockerFileName, contextDirSrc, imageName strin
 		log.Print(err, ": unable to read build output")
 		return "", err
 	}
+	o.logger.Info().Msg("Image built.")
 	return string(buildOutput), nil
 }
 
 func (o *Orchestrator) CreateWorker(imageName string) error {
 
 	var entryPoint strslice.StrSlice
-	log.Println(o.config.Mode)
+
 	if o.config.Mode == "testing" {
 		entryPoint = []string{"go", "test", "-v", "./worker/worker_test.go"}
 	} else if o.config.Mode == "development" {
@@ -92,17 +96,16 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 	}
 
 	containerCreateResponse, err := o.client.ContainerCreate(o.ctx, &container.Config{
-		Image: imageName,
-		//Tty:        false,
+		Image:      imageName,
 		Entrypoint: entryPoint,
 		ExposedPorts: nat.PortSet{
 			"8089/tcp": struct{}{},
 		},
 		AttachStderr: true,
-		AttachStdin:  true,
+		AttachStdin:  false,
 		Tty:          true,
 		AttachStdout: true,
-		OpenStdin:    true,
+		OpenStdin:    false,
 	}, &container.HostConfig{
 		PortBindings: nat.PortMap{
 			"8089/tcp": []nat.PortBinding{
@@ -113,19 +116,18 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 			}},
 	}, nil, nil, "")
 	if err != nil {
-		log.Print("Error creating container:", err)
+		o.logger.Fatal().Err(err).Msg("Unable to create container")
 		return err
 	}
 
 	err = o.client.ContainerStart(o.ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
-
 	if err != nil {
-		log.Print("Error starting container:", err)
+		o.logger.Fatal().Err(err).Msg("Unable to start container")
 		return err
 	}
 	o.WorkerIDs = append(o.WorkerIDs, containerCreateResponse.ID)
 
-	log.Printf("Docker container %s is running...\n", containerCreateResponse.ID)
+	o.logger.Info().Msgf("Started container %s", containerCreateResponse.ID)
 	return nil
 }
 
@@ -135,30 +137,47 @@ func (o *Orchestrator) RemoveWorker(workerID string) error {
 		RemoveVolumes: true,
 		Force:         true})
 	if err != nil {
-		log.Println("Error removing container:", err, ": unable to remove worker")
+		o.logger.Error().Err(err).Msgf("Unable to remove container %s", workerID)
 		return err
 	}
 
-	log.Printf("Worker %s successfully removed.\n", workerID)
+	o.logger.Info().Msgf("Removed container %s", workerID)
 	return nil
 }
 
 func (o *Orchestrator) ContainerLogs() error {
 
-	waiter, err := o.client.ContainerAttach(o.ctx, o.WorkerIDs[0], types.ContainerAttachOptions{
-		Stderr: true,
-		Stdout: true,
-		Stdin:  true,
-		Stream: true,
-	})
-	if err != nil {
-		fmt.Println("Error attaching:", err)
-		return err
-	}
+	// waiter, err := o.client.ContainerAttach(o.ctx, o.WorkerIDs[0], types.ContainerAttachOptions{
+	// 	Stderr: true,
+	// 	Stdout: true,
+	// 	Stdin:  true,
+	// 	Stream: true,
+	// })
+	// if err != nil {
+	// 	fmt.Println("Error attaching:", err)
+	// 	return err
+	// }
 
-	go io.Copy(os.Stdout, waiter.Reader)
-	go io.Copy(os.Stderr, waiter.Reader)
-	go io.Copy(waiter.Conn, os.Stdin)
+	// go io.Copy(os.Stdout, waiter.Reader)
+	// go io.Copy(os.Stderr, waiter.Reader)
+	// go io.Copy(waiter.Conn, os.Stdin)
+
+	go func() {
+		out, err := o.client.ContainerLogs(o.ctx, o.WorkerIDs[0], types.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Follow:     true,
+		})
+		if err != nil {
+			fmt.Println("Error getting container logs:", err)
+			return
+		}
+		defer out.Close()
+		scanner := bufio.NewScanner(out)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+		}
+	}()
 
 	statusCh, errCh := o.client.ContainerWait(o.ctx, o.WorkerIDs[0], container.WaitConditionNotRunning)
 	select {
@@ -167,19 +186,14 @@ func (o *Orchestrator) ContainerLogs() error {
 			fmt.Println("Error waiting for container:", err)
 			return err
 		}
-	case <-statusCh:
+	case status := <-statusCh:
+		o.logger.Info().Msgf("Container status code %#+v", status.StatusCode)
 	}
 
-	out, err := o.client.ContainerLogs(o.ctx, o.WorkerIDs[0], types.ContainerLogsOptions{ShowStdout: true})
-	if err != nil {
-		fmt.Println("Error getting container logs:", err)
-		return err
-	}
-
-	_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-	if err != nil {
-		fmt.Println("Error copying container logs to terminal:", err)
-		return err
-	}
+	// _, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
+	// if err != nil {
+	// 	fmt.Println("Error copying container logs to terminal:", err)
+	// 	return err
+	// }
 	return nil
 }
