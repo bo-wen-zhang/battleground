@@ -6,19 +6,31 @@ import (
 	"fmt"
 	"os"
 
-	"battleground-server/server"
+	"battleground-server/internal/manager"
 
 	"github.com/rs/zerolog"
 )
 
-func main() {
-	var cfg server.Config
+type config struct {
+	port int
+	env  string
+}
 
-	flag.StringVar(&cfg.Mode, "mode", "development", "Mode (development|testing)")
+type application struct {
+	config  config
+	logger  zerolog.Logger
+	manager manager.Manager
+}
+
+func main() {
+	var cfg config
+
+	flag.IntVar(&cfg.port, "port", 4000, "API server port")
+	flag.StringVar(&cfg.env, "mode", "development", "Mode (development|testing)")
 	flag.Parse()
 
 	logFile, err := os.OpenFile(
-		"battleground_logs.log",
+		"/home/bo/Documents/battleground/server/logs/battleground_logs.log",
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0644,
 	)
@@ -29,7 +41,7 @@ func main() {
 
 	logger := zerolog.New(logFile).With().Timestamp().Logger()
 
-	o, err := server.NewOrchestrator(cfg, logger)
+	o, err := manager.NewManager(logger)
 	if err != nil {
 		return
 	}

@@ -1,0 +1,58 @@
+{"level":"info","time":"2023-12-07T19:10:47Z","message":"Image built."}
+{"level":"info","time":"2023-12-07T19:10:50Z","message":"Started container 128e28ff6d89ebbf6a09e21d0e0f6e9ec5f0cfd6c5f4a8ca8340d06ef972d076"}
+{"level":"info","time":"2023-12-07T19:18:57Z","message":"Removed container 128e28ff6d89ebbf6a09e21d0e0f6e9ec5f0cfd6c5f4a8ca8340d06ef972d076"}
+{"level":"info","time":"2023-12-07T19:24:58Z","message":"Image built."}
+{"level":"info","time":"2023-12-07T19:25:00Z","message":"Started container 18ce7527fd00687d2dc8477f32a594fc51517b3e222e4fe10efe3d0dfe1e83e6"}
+{"level":"info","time":"2023-12-07T19:25:14Z","message":"Container status code 2"}
+{"level":"info","time":"2023-12-07T19:25:14Z","message":"Removed container 18ce7527fd00687d2dc8477f32a594fc51517b3e222e4fe10efe3d0dfe1e83e6"}
+{"level":"info","time":"2023-12-09T10:10:15Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T10:10:16Z","message":"Started container db7194e69a7f33c257506c05b06ed62996e99ef4fd05de47502d3eb0aea4360f"}
+{"level":"info","time":"2023-12-09T10:10:16Z","message":"Container status code 1"}
+{"level":"info","time":"2023-12-09T10:10:16Z","message":"Removed container db7194e69a7f33c257506c05b06ed62996e99ef4fd05de47502d3eb0aea4360f"}
+{"level":"info","time":"2023-12-09T10:11:22Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T10:11:22Z","message":"Started container 4548d0dfef13c4f40d7fc09e4618c2b3f0c2befd0575f0bd036f8cc80d431a19"}
+{"level":"info","time":"2023-12-09T11:12:57Z","message":"Image built."}
+{"level":"fatal","error":"Error response from daemon: invalid volume specification: '/engine_logs.log:engine_logs.log': invalid mount config for type \"bind\": invalid mount path: 'engine_logs.log' mount path must be absolute","time":"2023-12-09T11:12:58Z","message":"Unable to create container"}
+{"level":"info","time":"2023-12-09T11:14:27Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:14:28Z","message":"Started container 3ad36b7ee5663ba81d03ee3016df8923c9ca6477684ecbe736c9e5abb725d896"}
+{"level":"info","time":"2023-12-09T11:22:41Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:22:42Z","message":"Started container aa63fb5b70356bf6fdaa93ec72a1b25225ca99ebe097e4652fc5f98d7ad73eae"}
+{"level":"info","time":"2023-12-09T11:25:07Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:25:09Z","message":"Started container e29ac435bfaeeba31c837c96768cf081b8451fcfdbb6648e293d3be81582b7bb"}
+{"level":"info","time":"2023-12-09T11:26:57Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:26:58Z","message":"Started container 6ca5c8af07afeff2e46931e2a70aea397f8a7e36399d01f5b017d412eb7327f3"}
+{"level":"info","time":"2023-12-09T11:27:55Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:27:55Z","message":"Started container 8b7ab0e813fe5021bc020d5b1fd423df2999f15a5cabb279cf48d21163bd8c60"}
+{"level":"info","time":"2023-12-09T11:28:57Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T11:28:58Z","message":"Started container c2ba61ccf443aa01f14b0fa5ca8b82304ee935c787b561214ee89b09f507fe85"}
+{"level":"info","time":"2023-12-09T12:00:58Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T12:00:59Z","message":"Started container a24ec9ce3331c804f8bde96b53e772f03da66d332cb5b6fa6595a759f22c7d55"}
+{"level":"info","time":"2023-12-09T12:02:09Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T12:02:10Z","message":"Started container f8fa85995527cdb0d889863a3499bd8aebeb812246ce8bf277a0ed4790b12265"}
+{"level":"info","time":"2023-12-09T12:08:07Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T12:08:08Z","message":"Started container 89e9bf01c303acea5bf467a25cfde1c00f901d1893922c594e7e18bb8cb1bb43"}
+{"level":"info","time":"2023-12-09T13:04:01Z","message":"Image built."}
+{"level":"fatal","error":"Error response from daemon: invalid mount config for type \"bind\": invalid mount path: 'go/logs' mount path must be absolute","time":"2023-12-09T13:04:01Z","message":"Unable to create container"}
+{"level":"info","time":"2023-12-09T13:04:38Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T13:04:39Z","message":"Started container 4b2c0522ff5e8df93efc13a83f17a8300a57ef1c1fba92d35659a1abc89223fc"}
+{"level":"info","time":"2023-12-09T13:40:51Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T13:40:53Z","message":"Started container 63b3019499e61330230c7021af7156c7b0a84147787678e32e00fada1f981724"}
+{"level":"info","time":"2023-12-09T14:08:51Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:08:53Z","message":"Started container 8bf9760d26cb389291af4160e976aac5cf7e141cf9ae36b1f2ea817b49902fd0"}
+{"level":"info","time":"2023-12-09T14:10:10Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:10:11Z","message":"Started container 4c605d68bc5682cb9e9ca8b0704064624a24d98e57ff08af2296771c7de853a5"}
+{"level":"info","time":"2023-12-09T14:17:01Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:17:02Z","message":"Started container ca64813d51f7fb3f3b8a1a2e8c7b17ee613265ae096699a29e6b9bdf6144f74e"}
+{"level":"info","time":"2023-12-09T14:17:29Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:17:30Z","message":"Started container 0b790fed932a8487303741f7cb5a72104e2cab37e694aa35b3629f408aeef594"}
+{"level":"info","time":"2023-12-09T14:19:56Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:19:57Z","message":"Started container e11022ae10befda21280ff4ef28d9fbb8e24e1802e61e928f0824c75b7a22c1e"}
+{"level":"info","time":"2023-12-09T14:21:16Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:21:17Z","message":"Started container 0c80f2b83e41ab23a2993ccea4534a1fb1f69eebdb64eafa54dd141ca4302ad0"}
+{"level":"info","time":"2023-12-09T14:26:05Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:26:06Z","message":"Started container 46d93fd04b394bc7cc7d564175be03279fdcc64dc4bee44ba50c31c98077faa7"}
+{"level":"info","time":"2023-12-09T14:31:38Z","message":"Image built."}
+{"level":"info","time":"2023-12-09T14:31:39Z","message":"Started container 32dfe57cd676be407872eec69f786533908bbe19b28f27f332af1fbf8601b262"}
+{"level":"fatal","error":"Error response from daemon: dockerfile parse error on line 18: unknown instruction: COP (did you mean COPY?)","time":"2023-12-09T14:32:05Z","message":"Unable to build image"}
+{"level":"info","time":"2023-12-09T14:33:02Z","message":"Image built."}
+{"level":"fatal","error":"Error response from daemon: invalid mount config for type \"bind\": invalid mount path: 'go/logs' mount path must be absolute","time":"2023-12-09T14:33:02Z","message":"Unable to create container"}

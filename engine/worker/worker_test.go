@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+//to run: go test -v ./worker/worker_test.go
+
 func TestHelloWorld(t *testing.T) {
 	w := worker.NewWorker(1)
 	input, err := w.WriteSolutionInput("")

@@ -1,102 +1,92 @@
-package server
+package manager
 
 import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"log"
-	"os"
 
 	"battleground-server/internal/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/rs/zerolog"
 )
 
-type Config struct {
-	//mode=testing to launch containers to run unit tests
-	Mode string
-}
-
-type Orchestrator struct {
+type Manager struct {
 	Images    []string //names of images
 	WorkerIDs []string //ids of worker containers
 	client    *client.Client
 	ctx       context.Context
-	config    Config
 	logger    zerolog.Logger
 }
 
-func NewOrchestrator(cfg Config, logger zerolog.Logger) (*Orchestrator, error) {
+func NewManager(logger zerolog.Logger) (*Manager, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Unable to init client")
-		return &Orchestrator{}, err
+		return &Manager{}, err
 	}
-	return &Orchestrator{
+	return &Manager{
 		client: cli,
 		ctx:    context.Background(),
-		config: cfg,
 		logger: logger,
 	}, nil
 }
 
-func (o *Orchestrator) BuildImage(dockerFileName, contextDirSrc, imageName string) (string, error) {
+// Builds image from dockerfile and build context
+func (man *Manager) BuildImage(dockerFileName, contextDirSrc, imageName string) (string, error) {
 	dockerFileTarReader, err := util.CreateTarReader(contextDirSrc)
 	if err != nil {
-		o.logger.Fatal().Err(err).Msg("Unable to tarball build context")
+		man.logger.Fatal().Err(err).Msg("Unable to tarball build context")
 		return "", err
 	}
 
-	imageBuildResponse, err := o.client.ImageBuild(
-		o.ctx,
+	imageBuildResponse, err := man.client.ImageBuild(
+		man.ctx,
 		dockerFileTarReader,
 		types.ImageBuildOptions{
 			Context:    dockerFileTarReader,
 			Dockerfile: dockerFileName,
 			Tags:       []string{imageName}})
 	if err != nil {
-		o.logger.Fatal().Err(err).Msg("Unable to build image")
+		man.logger.Fatal().Err(err).Msg("Unable to build image")
 		return "", err
 	}
 	defer imageBuildResponse.Body.Close()
-	_, err = io.Copy(os.Stdout, imageBuildResponse.Body)
-	if err != nil {
-		log.Print(err, " :unable to read image build response")
-		return "", err
+	// _, err = io.Copy(os.Stdout, imageBuildResponse.Body)
+	// if err != nil {
+	// 	o.logger.Fatal().Err(err).Msg("Unable to read build response from stdout")
+	// 	return "", err
+	// }
+
+	buildScanner := bufio.NewScanner(imageBuildResponse.Body)
+	for buildScanner.Scan() {
+		line := buildScanner.Text()
+		// if strings.Contains(line, "error") {
+		// 	fmt.Println(line)
+		// }
+		fmt.Println(line)
 	}
 
-	defer imageBuildResponse.Body.Close()
-
-	buildOutput, err := io.ReadAll(imageBuildResponse.Body)
-	if err != nil {
-		log.Print(err, ": unable to read build output")
-		return "", err
-	}
-	o.logger.Info().Msg("Image built.")
-	return string(buildOutput), nil
+	// buildOutput, err := io.ReadAll(imageBuildResponse.Body)
+	// if err != nil {
+	// 	man.logger.Fatal().Err(err).Msg("Unable to read build response into []byte")
+	// 	return "", err
+	// }
+	man.logger.Info().Msg("Image built.")
+	return "", nil
+	//return string(buildOutput), nil
 }
 
-func (o *Orchestrator) CreateWorker(imageName string) error {
+// Creates a worker container
+func (man *Manager) CreateWorker(imageName string) error {
 
-	var entryPoint strslice.StrSlice
+	entryPoint := []string{"./battleground-engine"}
 
-	if o.config.Mode == "testing" {
-		entryPoint = []string{"go", "test", "-v", "./worker/worker_test.go"}
-	} else if o.config.Mode == "development" {
-		//entryPoint = []string{"go", "run", "main.go"}
-		entryPoint = []string{"./battleground-engine"}
-	} else {
-		log.Fatal("Mode (testing|development) configured incorrectly.")
-	}
-
-	containerCreateResponse, err := o.client.ContainerCreate(o.ctx, &container.Config{
+	containerCreateResponse, err := man.client.ContainerCreate(man.ctx, &container.Config{
 		Image:      imageName,
 		Entrypoint: entryPoint,
 		ExposedPorts: nat.PortSet{
@@ -119,7 +109,7 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 			{
 				Type:   mount.TypeBind,
 				Source: "/home/bo/Documents/battleground/server/logs",
-				Target: "/go/logs",
+				Target: "go/logs",
 			},
 		},
 		// Binds: []string{
@@ -127,38 +117,38 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 		// },
 	}, nil, nil, "")
 	if err != nil {
-		o.logger.Fatal().Err(err).Msg("Unable to create container")
+		man.logger.Fatal().Err(err).Msg("Unable to create container")
 		return err
 	}
 
-	err = o.client.ContainerStart(o.ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
+	err = man.client.ContainerStart(man.ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
 	if err != nil {
-		o.logger.Fatal().Err(err).Msg("Unable to start container")
+		man.logger.Fatal().Err(err).Msg("Unable to start container")
 		return err
 	}
-	o.WorkerIDs = append(o.WorkerIDs, containerCreateResponse.ID)
+	man.WorkerIDs = append(man.WorkerIDs, containerCreateResponse.ID)
 
-	o.logger.Info().Msgf("Started container %s", containerCreateResponse.ID)
+	man.logger.Info().Msgf("Started container %s", containerCreateResponse.ID)
 	return nil
 }
 
-func (o *Orchestrator) RemoveWorker(workerID string) error {
-	err := o.client.ContainerRemove(o.ctx, workerID, types.ContainerRemoveOptions{
+func (man *Manager) RemoveWorker(workerID string) error {
+	err := man.client.ContainerRemove(man.ctx, workerID, types.ContainerRemoveOptions{
 		//RemoveLinks:   true, learn what links are
 		RemoveVolumes: true,
 		Force:         true})
 	if err != nil {
-		o.logger.Error().Err(err).Msgf("Unable to remove container %s", workerID)
+		man.logger.Error().Err(err).Msgf("Unable to remove container %s", workerID)
 		return err
 	}
 
-	o.logger.Info().Msgf("Removed container %s", workerID)
+	man.logger.Info().Msgf("Removed container %s", workerID)
 	return nil
 }
 
-func (o *Orchestrator) ContainerLogs() error {
+func (man *Manager) ContainerLogs() error {
 
-	// waiter, err := o.client.ContainerAttach(o.ctx, o.WorkerIDs[0], types.ContainerAttachOptions{
+	// waiter, err := man.client.ContainerAttach(man.ctx, man.WorkerIDs[0], types.ContainerAttachOptions{
 	// 	Stderr: true,
 	// 	Stdout: true,
 	// 	Stdin:  true,
@@ -174,7 +164,7 @@ func (o *Orchestrator) ContainerLogs() error {
 	// go io.Copy(waiter.Conn, os.Stdin)
 
 	go func() {
-		out, err := o.client.ContainerLogs(o.ctx, o.WorkerIDs[0], types.ContainerLogsOptions{
+		out, err := man.client.ContainerLogs(man.ctx, man.WorkerIDs[0], types.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
@@ -190,7 +180,7 @@ func (o *Orchestrator) ContainerLogs() error {
 		}
 	}()
 
-	statusCh, errCh := o.client.ContainerWait(o.ctx, o.WorkerIDs[0], container.WaitConditionNotRunning)
+	statusCh, errCh := man.client.ContainerWait(man.ctx, man.WorkerIDs[0], container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -198,7 +188,7 @@ func (o *Orchestrator) ContainerLogs() error {
 			return err
 		}
 	case status := <-statusCh:
-		o.logger.Info().Msgf("Container status code %#+v", status.StatusCode)
+		man.logger.Info().Msgf("Container status code %#+v", status.StatusCode)
 	}
 
 	// _, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
