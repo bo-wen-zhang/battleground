@@ -1,2 +1,3 @@
 /test.py
 server/battleground_logs.log
+server/logs/engine_logs.log

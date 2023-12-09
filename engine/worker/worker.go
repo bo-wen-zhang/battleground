@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -32,14 +31,8 @@ func NewWorker(timeout float32) *Worker {
 func (w *Worker) WriteProgramToFile(program []byte, filename string) error {
 	err := os.WriteFile(filename, program, 0644)
 	if err != nil {
-		log.Print("File does not exist or cannot be created")
 		return err
 	}
-
-	// writer := bufio.NewWriter(file)
-	// fmt.Fprintf(writer, "%v\n", program)
-
-	// writer.Flush()
 	return nil
 }
 
@@ -91,11 +84,9 @@ func (w *Worker) ExecuteSolution(solutionInput *os.File, solutionPath string) (*
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}()
 	if err := cmd.Start(); err != nil {
-		log.Println("Error with start:", err)
 		return res, err
 	}
 	if err := cmd.Wait(); err != nil {
-		log.Println("Error with wait:", err)
 		return res, err
 	}
 

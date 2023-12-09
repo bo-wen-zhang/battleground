@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -114,6 +115,16 @@ func (o *Orchestrator) CreateWorker(imageName string) error {
 					HostPort: "8089",
 				},
 			}},
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: "/home/bo/Documents/battleground/server/logs",
+				Target: "/go/logs",
+			},
+		},
+		// Binds: []string{
+		// 	"/home/bo/Documents/battleground/server/engine_logs.log:/engine_logs.log",
+		// },
 	}, nil, nil, "")
 	if err != nil {
 		o.logger.Fatal().Err(err).Msg("Unable to create container")
