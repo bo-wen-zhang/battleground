@@ -1,6 +1,7 @@
 package manager
 
 import (
+	job_handler "battleground-server/job_handler"
 	"bufio"
 	"context"
 	"fmt"
@@ -21,7 +22,10 @@ type Manager struct {
 	client    *client.Client
 	ctx       context.Context
 	logger    zerolog.Logger
+	studs     map[string]job_handler.JobClient
 }
+
+//need a client for each worker
 
 func NewManager(logger zerolog.Logger) (*Manager, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())

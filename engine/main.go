@@ -1,7 +1,7 @@
 package main
 
 import (
-	job_handler "battleground-engine/job-handler"
+	job_handler "battleground-engine/job_handler"
 	"context"
 	"fmt"
 	"net"
