@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"time"
 
 	"battleground-server/internal/util"
 
@@ -13,85 +14,97 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
 	"github.com/rs/zerolog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-type Manager struct {
-	Images    []string //names of images
-	WorkerIDs []string //ids of worker containers
-	client    *client.Client
-	ctx       context.Context
-	logger    zerolog.Logger
-	studs     map[string]job_handler.JobClient
+type Engine struct {
+	containerID string
+	port        string
+	clientStub  job_handler.JobClient
+	ctx         context.Context
 }
 
-//need a client for each worker
+func NewEngine(containerID, port string) (*Engine, error) {
 
-func NewManager(logger zerolog.Logger) (*Manager, error) {
+	timeoutValue := 2 * time.Second
+	ctx, _ := context.WithTimeout(context.Background(), timeoutValue)
+	serverAddress := "127.0.0.1:" + port
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)),
+	}
+	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
+}
+
+type Manager struct {
+	ImageName    string   //names of images
+	WorkerIDs    []string //ids of worker containers
+	dockerClient *client.Client
+	ctx          context.Context
+	logger       zerolog.Logger
+	engines      map[string]Engine //map of containerID to engine struct
+	//studs        map[string]job_handler.JobClient
+}
+
+// Creates a new Manager
+// Returns an error if docker client cannot be created
+func NewManager(imageName string, logger zerolog.Logger) (*Manager, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Unable to init client")
 		return &Manager{}, err
 	}
 	return &Manager{
-		client: cli,
-		ctx:    context.Background(),
-		logger: logger,
+		ImageName:    imageName,
+		dockerClient: cli,
+		ctx:          context.Background(),
+		logger:       logger,
+		engines:      map[string]Engine{},
 	}, nil
 }
 
 // Builds image from dockerfile and build context
-func (man *Manager) BuildImage(dockerFileName, contextDirSrc, imageName string) (string, error) {
+// Fatals if it is unable to build an image as it means
+// that future containers for the engine cannot be created
+func (man *Manager) BuildImage(dockerFileName, contextDirSrc string) {
 	dockerFileTarReader, err := util.CreateTarReader(contextDirSrc)
 	if err != nil {
 		man.logger.Fatal().Err(err).Msg("Unable to tarball build context")
-		return "", err
 	}
 
-	imageBuildResponse, err := man.client.ImageBuild(
+	imageBuildResponse, err := man.dockerClient.ImageBuild(
 		man.ctx,
 		dockerFileTarReader,
 		types.ImageBuildOptions{
 			Context:    dockerFileTarReader,
 			Dockerfile: dockerFileName,
-			Tags:       []string{imageName}})
+			Tags:       []string{man.ImageName}})
 	if err != nil {
 		man.logger.Fatal().Err(err).Msg("Unable to build image")
-		return "", err
 	}
 	defer imageBuildResponse.Body.Close()
-	// _, err = io.Copy(os.Stdout, imageBuildResponse.Body)
-	// if err != nil {
-	// 	o.logger.Fatal().Err(err).Msg("Unable to read build response from stdout")
-	// 	return "", err
-	// }
 
 	buildScanner := bufio.NewScanner(imageBuildResponse.Body)
 	for buildScanner.Scan() {
 		line := buildScanner.Text()
-		// if strings.Contains(line, "error") {
-		// 	fmt.Println(line)
-		// }
 		fmt.Println(line)
 	}
 
-	// buildOutput, err := io.ReadAll(imageBuildResponse.Body)
-	// if err != nil {
-	// 	man.logger.Fatal().Err(err).Msg("Unable to read build response into []byte")
-	// 	return "", err
-	// }
 	man.logger.Info().Msg("Image built.")
-	return "", nil
-	//return string(buildOutput), nil
 }
 
-// Creates a worker container
-func (man *Manager) CreateWorker(imageName string) error {
+// Requires a port from host machine for mapping to the container
+// Creates a container for the engine
+// Returns the docker id of the container and an error if it fails to be created or started by docker
+func (man *Manager) CreateEngineContainer(hostPort string) (string, error) {
 
 	entryPoint := []string{"./battleground-engine"}
 
-	containerCreateResponse, err := man.client.ContainerCreate(man.ctx, &container.Config{
-		Image:      imageName,
+	containerCreateResponse, err := man.dockerClient.ContainerCreate(man.ctx, &container.Config{
+		Image:      man.ImageName,
 		Entrypoint: entryPoint,
 		ExposedPorts: nat.PortSet{
 			"8089/tcp": struct{}{},
@@ -106,7 +119,7 @@ func (man *Manager) CreateWorker(imageName string) error {
 			"8089/tcp": []nat.PortBinding{
 				{
 					HostIP:   "127.0.0.1",
-					HostPort: "8089",
+					HostPort: hostPort,
 				},
 			}},
 		Mounts: []mount.Mount{
@@ -116,59 +129,40 @@ func (man *Manager) CreateWorker(imageName string) error {
 				Target: "go/logs",
 			},
 		},
-		// Binds: []string{
-		// 	"/home/bo/Documents/battleground/server/engine_logs.log:/engine_logs.log",
-		// },
 	}, nil, nil, "")
 	if err != nil {
-		man.logger.Fatal().Err(err).Msg("Unable to create container")
-		return err
+		man.logger.Error().Err(err).Msgf("Unable to create container with port %s", hostPort)
+		return "", err
 	}
 
-	err = man.client.ContainerStart(man.ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
+	err = man.dockerClient.ContainerStart(man.ctx, containerCreateResponse.ID, types.ContainerStartOptions{})
 	if err != nil {
-		man.logger.Fatal().Err(err).Msg("Unable to start container")
-		return err
+		man.logger.Error().Err(err).Msgf("Unable to start container with port %s", hostPort)
+		return "", err
 	}
-	man.WorkerIDs = append(man.WorkerIDs, containerCreateResponse.ID)
 
-	man.logger.Info().Msgf("Started container %s", containerCreateResponse.ID)
-	return nil
+	man.logger.Info().Msgf("Started container %s at port %s ", containerCreateResponse.ID, hostPort)
+	return containerCreateResponse.ID, nil
 }
 
-func (man *Manager) RemoveWorker(workerID string) error {
-	err := man.client.ContainerRemove(man.ctx, workerID, types.ContainerRemoveOptions{
-		//RemoveLinks:   true, learn what links are
+func (man *Manager) RemoveEngineContainer(engineID string) error {
+	err := man.dockerClient.ContainerRemove(man.ctx, engineID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		Force:         true})
 	if err != nil {
-		man.logger.Error().Err(err).Msgf("Unable to remove container %s", workerID)
+		man.logger.Error().Err(err).Msgf("Unable to remove container %s", engineID)
 		return err
 	}
 
-	man.logger.Info().Msgf("Removed container %s", workerID)
+	man.logger.Info().Msgf("Removed container %s", engineID)
 	return nil
 }
 
+// TODO: Here I should remove engine container from docker if it crashes
 func (man *Manager) ContainerLogs() error {
 
-	// waiter, err := man.client.ContainerAttach(man.ctx, man.WorkerIDs[0], types.ContainerAttachOptions{
-	// 	Stderr: true,
-	// 	Stdout: true,
-	// 	Stdin:  true,
-	// 	Stream: true,
-	// })
-	// if err != nil {
-	// 	fmt.Println("Error attaching:", err)
-	// 	return err
-	// }
-
-	// go io.Copy(os.Stdout, waiter.Reader)
-	// go io.Copy(os.Stderr, waiter.Reader)
-	// go io.Copy(waiter.Conn, os.Stdin)
-
 	go func() {
-		out, err := man.client.ContainerLogs(man.ctx, man.WorkerIDs[0], types.ContainerLogsOptions{
+		out, err := man.dockerClient.ContainerLogs(man.ctx, man.WorkerIDs[0], types.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
@@ -184,7 +178,7 @@ func (man *Manager) ContainerLogs() error {
 		}
 	}()
 
-	statusCh, errCh := man.client.ContainerWait(man.ctx, man.WorkerIDs[0], container.WaitConditionNotRunning)
+	statusCh, errCh := man.dockerClient.ContainerWait(man.ctx, man.WorkerIDs[0], container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
@@ -195,10 +189,5 @@ func (man *Manager) ContainerLogs() error {
 		man.logger.Info().Msgf("Container status code %#+v", status.StatusCode)
 	}
 
-	// _, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-	// if err != nil {
-	// 	fmt.Println("Error copying container logs to terminal:", err)
-	// 	return err
-	// }
 	return nil
 }

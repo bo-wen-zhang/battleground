@@ -3,7 +3,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"battleground-server/internal/manager"
@@ -15,6 +14,12 @@ type config struct {
 	port int
 	env  string
 }
+
+const (
+	imageName      = "battleground-engine"
+	dockerFileName = "Dockerfile"
+	contextDirSrc  = "../engine"
+)
 
 type application struct {
 	config  config
@@ -41,29 +46,22 @@ func main() {
 
 	logger := zerolog.New(logFile).With().Timestamp().Logger()
 
-	o, err := manager.NewManager(logger)
+	man, err := manager.NewManager(imageName, logger)
 	if err != nil {
 		return
 	}
 
-	imageName := "battleground-engine"
-	dockerFileName := "Dockerfile"
-	contextDirSrc := "../engine"
-	buildOutput, err := o.BuildImage(dockerFileName, contextDirSrc, imageName)
-	if err != nil {
-		return
-	}
-	fmt.Print(buildOutput)
-
-	err = o.CreateWorker(imageName)
+	man.BuildImage(dockerFileName, contextDirSrc)
+	hostPort := "8089"
+	containerID, err := man.CreateEngineContainer(hostPort)
 	if err != nil {
 		return
 	}
 
-	err = o.ContainerLogs()
+	err = man.ContainerLogs()
 	if err != nil {
 		return
 	}
 
-	o.RemoveWorker(o.WorkerIDs[0])
+	man.RemoveEngineContainer(containerID)
 }
