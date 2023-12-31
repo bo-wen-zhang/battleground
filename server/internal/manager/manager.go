@@ -23,11 +23,34 @@ import (
 type Engine struct {
 	containerID string
 	port        string
-	clientStub  pb.EngineServiceClient
-	ctx         context.Context
+	Stub        pb.EngineServiceClient
 }
 
-func NewEngineConn(containerID, port string) (*grpc.ClientConn, error) {
+func (man *Manager) BuildEngine(port string) error {
+	containerID, err := man.CreateEngineContainer(port)
+	if err != nil {
+		return err
+	}
+
+	conn, err := man.EstablishEngineConn(containerID, port)
+	if err != nil {
+		man.RemoveEngineContainer(containerID)
+		return err
+	}
+
+	stub := pb.NewEngineServiceClient(conn)
+
+	engine := &Engine{
+		containerID: containerID,
+		port:        port,
+		Stub:        stub,
+	}
+
+	man.Engines = append(man.Engines, engine)
+	return nil
+}
+
+func (man *Manager) EstablishEngineConn(containerID, port string) (*grpc.ClientConn, error) {
 
 	timeoutValue := 2 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutValue)
@@ -37,22 +60,22 @@ func NewEngineConn(containerID, port string) (*grpc.ClientConn, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)),
 	}
+
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
-	if err != nil { //failed to dial
+	if err != nil {
+		man.logger.Error().Err(err).Msgf("Failed to dial to container %s on port %s", containerID, port)
 		return nil, err
 	}
-
 	return conn, nil
 }
 
+// A manager manages the engines that the server connects to.
 type Manager struct {
-	ImageName    string   //names of images
-	WorkerIDs    []string //ids of worker containers
+	ImageName    string //names of images
 	dockerClient *client.Client
 	ctx          context.Context
 	logger       zerolog.Logger
-	engines      map[string]Engine //map of containerID to engine struct
-	//studs        map[string]job_handler.JobClient
+	Engines      []*Engine //slice of engines
 }
 
 // Creates a new Manager
@@ -68,7 +91,7 @@ func NewManager(imageName string, logger zerolog.Logger) (*Manager, error) {
 		dockerClient: cli,
 		ctx:          context.Background(),
 		logger:       logger,
-		engines:      map[string]Engine{},
+		Engines:      []*Engine{},
 	}, nil
 }
 
@@ -164,11 +187,26 @@ func (man *Manager) RemoveEngineContainer(engineID string) error {
 	return nil
 }
 
+func (man *Manager) RemoveAllContainers() error {
+	for _, engine := range man.Engines {
+		err := man.dockerClient.ContainerRemove(man.ctx, engine.containerID, types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true})
+		if err != nil {
+			man.logger.Error().Err(err).Msgf("Failed to remove container %s", engine.containerID)
+			return err
+		}
+	}
+	man.logger.Info().Msg("Removed all containers")
+	return nil
+}
+
 // TODO: Here I should remove engine container from docker if it crashes
-func (man *Manager) ContainerLogs() error {
+// Also this is not currently being used.
+func (man *Manager) ContainerLogs(containerID string) error {
 
 	go func() {
-		out, err := man.dockerClient.ContainerLogs(man.ctx, man.WorkerIDs[0], types.ContainerLogsOptions{
+		out, err := man.dockerClient.ContainerLogs(man.ctx, containerID, types.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 			Follow:     true,
@@ -184,7 +222,7 @@ func (man *Manager) ContainerLogs() error {
 		}
 	}()
 
-	statusCh, errCh := man.dockerClient.ContainerWait(man.ctx, man.WorkerIDs[0], container.WaitConditionNotRunning)
+	statusCh, errCh := man.dockerClient.ContainerWait(man.ctx, containerID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {

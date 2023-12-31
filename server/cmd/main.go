@@ -56,31 +56,27 @@ func main() {
 
 	man.BuildImage(dockerFileName, contextDirSrc)
 	hostPort := "8089"
-	containerID, err := man.CreateEngineContainer(hostPort)
+
+	err = man.BuildEngine(hostPort)
 	if err != nil {
+		logger.Error().Err(err).Msg("Could not build engine.")
 		return
 	}
+
 	defer func() {
 		if r := recover(); r != nil {
-			man.RemoveEngineContainer(containerID)
+			man.RemoveAllContainers()
 		}
 	}()
-	conn, err := manager.NewEngineConn(containerID, hostPort)
-	if err != nil {
-		logger.Panic().Err(err).Msg("Error dialling to engine")
-	}
-	defer conn.Close()
 
-	clientStub := pb.NewEngineServiceClient(conn)
-	res, err := clientStub.GetProgramResult(context.Background(), &pb.Program{
+	res, err := man.Engines[0].Stub.GetProgramResult(context.Background(), &pb.Program{
 		UserId:     69,
 		SourceCode: "print(\"Hello World\")",
 	})
-
 	if err != nil {
 		logger.Panic().Err(err).Msg("Error getting job response")
 	}
 	fmt.Println(res)
 
-	man.RemoveEngineContainer(containerID)
+	man.RemoveAllContainers()
 }

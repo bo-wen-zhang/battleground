@@ -32,3 +32,12 @@
 {"level":"info","time":"2023-12-31T22:10:03Z","message":"Image built."}
 {"level":"info","time":"2023-12-31T22:10:04Z","message":"Started container bbcfb986c21ea67972a2be21c5b6c0126058cb74412c8b6d1e205b2b96b7bc6d at port 8089 "}
 {"level":"info","time":"2023-12-31T22:10:06Z","message":"Removed container bbcfb986c21ea67972a2be21c5b6c0126058cb74412c8b6d1e205b2b96b7bc6d"}
+{"level":"info","time":"2023-12-31T22:55:24Z","message":"Image built."}
+{"level":"info","time":"2023-12-31T22:55:25Z","message":"Started container 1f5eb69b91728cf0a02f9066fbdebf4c22823db3209b66f151d81808414f573f at port 8089 "}
+{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:36278->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T22:55:25Z","message":"Error getting job response"}
+{"level":"info","time":"2023-12-31T22:56:30Z","message":"Image built."}
+{"level":"error","error":"Error response from daemon: driver failed programming external connectivity on endpoint admiring_napier (8d26d6dc528d5354037244e665a9d34ac5c56887ee11c6412b015c669dd28f52): Bind for 127.0.0.1:8089 failed: port is already allocated","time":"2023-12-31T22:56:30Z","message":"Unable to start container with port 8089"}
+{"level":"error","error":"Error response from daemon: driver failed programming external connectivity on endpoint admiring_napier (8d26d6dc528d5354037244e665a9d34ac5c56887ee11c6412b015c669dd28f52): Bind for 127.0.0.1:8089 failed: port is already allocated","time":"2023-12-31T22:56:30Z","message":"Could not build engine."}
+{"level":"info","time":"2023-12-31T22:57:59Z","message":"Image built."}
+{"level":"info","time":"2023-12-31T22:57:59Z","message":"Started container 7bf421c97b6b218f5ef8c58602b7e13151bbbb7a0168e92b898e7d4db7c3d2d4 at port 8089 "}
+{"level":"info","time":"2023-12-31T22:58:00Z","message":"Removed all containers"}
