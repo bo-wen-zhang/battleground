@@ -11,9 +11,9 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 	}
 }
 
-func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request) {
+// func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request) {
 
-}
+// }
 
 func (app *application) logError(r *http.Request, err error) {
 	app.logger.Error().Err(err).Str("request_method", r.Method).Str("request_url", r.URL.String())

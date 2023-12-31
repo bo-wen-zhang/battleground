@@ -14,5 +14,4 @@ func (app *application) createExecTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	header
 }

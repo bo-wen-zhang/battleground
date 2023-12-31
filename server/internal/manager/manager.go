@@ -1,7 +1,7 @@
 package manager
 
 import (
-	job_handler "battleground-server/job_handler"
+	pb "battleground-server/engine_service"
 	"bufio"
 	"context"
 	"fmt"
@@ -23,20 +23,26 @@ import (
 type Engine struct {
 	containerID string
 	port        string
-	clientStub  job_handler.JobClient
+	clientStub  pb.EngineServiceClient
 	ctx         context.Context
 }
 
-func NewEngine(containerID, port string) (*Engine, error) {
+func NewEngineConn(containerID, port string) (*grpc.ClientConn, error) {
 
 	timeoutValue := 2 * time.Second
-	ctx, _ := context.WithTimeout(context.Background(), timeoutValue)
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutValue)
+	defer cancel()
 	serverAddress := "127.0.0.1:" + port
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)),
 	}
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
+	if err != nil { //failed to dial
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 type Manager struct {
@@ -126,7 +132,7 @@ func (man *Manager) CreateEngineContainer(hostPort string) (string, error) {
 			{
 				Type:   mount.TypeBind,
 				Source: "/home/bo/Documents/battleground/server/logs",
-				Target: "go/logs",
+				Target: "/go/logs",
 			},
 		},
 	}, nil, nil, "")

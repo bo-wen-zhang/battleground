@@ -2,9 +2,12 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"os"
 
+	pb "battleground-server/engine_service"
 	"battleground-server/internal/manager"
 
 	"github.com/rs/zerolog"
@@ -57,11 +60,27 @@ func main() {
 	if err != nil {
 		return
 	}
-
-	err = man.ContainerLogs()
+	defer func() {
+		if r := recover(); r != nil {
+			man.RemoveEngineContainer(containerID)
+		}
+	}()
+	conn, err := manager.NewEngineConn(containerID, hostPort)
 	if err != nil {
-		return
+		logger.Panic().Err(err).Msg("Error dialling to engine")
 	}
+	defer conn.Close()
+
+	clientStub := pb.NewEngineServiceClient(conn)
+	res, err := clientStub.GetProgramResult(context.Background(), &pb.Program{
+		UserId:     69,
+		SourceCode: "print(\"Hello World\")",
+	})
+
+	if err != nil {
+		logger.Panic().Err(err).Msg("Error getting job response")
+	}
+	fmt.Println(res)
 
 	man.RemoveEngineContainer(containerID)
 }

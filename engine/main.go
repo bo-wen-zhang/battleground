@@ -1,7 +1,7 @@
 package main
 
 import (
-	job_handler "battleground-engine/job_handler"
+	pb "battleground-engine/engine_service"
 	"context"
 	"fmt"
 	"net"
@@ -13,26 +13,30 @@ import (
 	"google.golang.org/grpc"
 )
 
-type myJobServer struct {
-	job_handler.UnimplementedJobServer
+type engineServer struct {
+	pb.UnimplementedEngineServiceServer
 	worker worker.Worker
 	logger zerolog.Logger
 }
 
-func NewJobServer(logger zerolog.Logger) *myJobServer {
-	return &myJobServer{
+func NewJobServer(logger zerolog.Logger) *engineServer {
+	return &engineServer{
 		worker: *worker.NewWorker(1),
 		logger: logger,
 	}
 }
 
-func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest) (*job_handler.CreateResponse, error) {
+func (s *engineServer) GetProgramResult(ctx context.Context, req *pb.Program) (*pb.Result, error) {
 	s.logger.Info().Msg("Received requested")
 	err := s.worker.WriteProgramToFile([]byte(req.SourceCode), "test.py")
 	if err != nil {
 		s.logger.Fatal().Err(err).Msg("Error writing program to file")
 	}
-	input, err := s.worker.WriteSolutionInput(req.Input)
+	var givenInput string
+	if req.Input != nil {
+		givenInput = *req.Input
+	}
+	input, err := s.worker.WriteSolutionInput(givenInput)
 	if err != nil {
 		s.logger.Fatal().Err(err).Msg("Error writing input")
 	}
@@ -41,10 +45,12 @@ func (s *myJobServer) Create(ctx context.Context, req *job_handler.CreateRequest
 		s.logger.Warn().Err(err).Msg("Error executing")
 	}
 
-	return &job_handler.CreateResponse{
-		Stdout: res.Stdout.String(),
-		Stderr: res.Stderr.String(),
-		Error:  fmt.Sprint(err),
+	return &pb.Result{
+		StandardOutput: res.Stdout.String(),
+		StandardError:  res.Stderr.String(),
+		ElapsedTime:    "",
+		MemoryUsage:    "",
+		EngineError:    fmt.Sprint(err),
 	}, nil
 }
 
@@ -61,17 +67,18 @@ func main() {
 	defer logFile.Close()
 
 	logger := zerolog.New(logFile).With().Timestamp().Logger()
+	logger.Info().Msg("This engine has started running.")
 
-	lis, err := net.Listen("tcp", ":8089")
+	lis, err := net.Listen("tcp4", ":8089")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Cannot create listener")
 	}
 	serverRegistrar := grpc.NewServer()
-	service := &myJobServer{
+	service := &engineServer{
 		logger: logger,
 	}
 
-	job_handler.RegisterJobServer(serverRegistrar, service)
+	pb.RegisterEngineServiceServer(serverRegistrar, service)
 	err = serverRegistrar.Serve(lis)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Cannot serve")

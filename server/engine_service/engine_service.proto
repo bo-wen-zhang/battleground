@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+option go_package = "battleground-server/engine_service/";
+
+// Interface exported by the server.
+service EngineService {
+
+    // Obtains the result of executing a program in the engine container.
+    rpc GetProgramResult(Program) returns (Result);
+
+    // Obtains the result of executing a program against test cases.
+    rpc GetTestedResult(ProgramWithTests) returns (TestResult);
+}
+
+// A program by a user to be executed.
+message Program {
+    // Id of the user associated with the program and request.
+    uint32 userId = 1;
+
+    // The source code of the program to be executed.
+    string sourceCode = 2;
+
+    // If given, the user's input to be written to stdin during program execution.
+    optional string input = 3;
+}
+
+// A test case to judge whether a program is valid.
+message TestCase {
+    // Data to test a program against.
+    string testData = 1;
+
+    // The expected output from a valid program for the test data.
+    string expectedOutput = 2;
+}
+
+// A program with a list of test cases to be executed against.
+message ProgramWithTests {
+    // The user's program
+    Program program = 1;
+
+    // The list of test cases
+    repeated TestCase tests = 2;
+}
+
+// Contains the result of executing a program.
+message Result {
+    // The stdout of the program.
+    string standardOutput = 1;
+
+    // The stderr produced by the program.
+    // nil if there was no problem with program execution.
+    string standardError = 2;
+
+    // The time, in ms, that the program took to terminate execution.
+    string elapsedTime = 3;
+
+    // The amount of memory used by the program.
+    string memoryUsage = 4;
+
+    // Indicates any problem the engine itself had with executing the program.
+    // For example, the program may have timed out or consumed too much memory.
+    string engineError = 5;
+}
+
+// Contains the result of executing a program against a set of test cases.
+message TestResult {
+
+    // Indicates whether the program successfully passed against all test cases.
+    bool accepted = 1;
+
+    // The following two fields should be included if accepted == False.
+
+    // The first test case that the program failed on.
+    optional TestCase failedTestIndex = 2;
+
+    // Result of the program when tested against the first failed test case.
+    optional Result failedResult = 3;
+}
