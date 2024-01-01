@@ -1,5 +1,0 @@
-{"level":"info","time":"2024-01-01T11:05:49Z","message":"Image built."}
-{"level":"info","time":"2024-01-01T11:05:51Z","message":"Started container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75 at port 8089 "}
-{"level":"error","error":"context deadline exceeded","time":"2024-01-01T11:05:51Z","message":"Failed to dial to container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75 on port 8089"}
-{"level":"info","time":"2024-01-01T11:05:51Z","message":"Removed container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75"}
-{"level":"error","error":"context deadline exceeded","time":"2024-01-01T11:05:51Z","message":"Could not build engine."}
