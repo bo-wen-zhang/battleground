@@ -1,43 +1,5 @@
-{"level":"info","time":"2023-12-31T17:59:04Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T17:59:05Z","message":"Started container d399e33cc5442202096c661e61f8807c720f98250cd45cc70fb5213fb5147e44 at port 8089 "}
-{"level":"error","time":"2023-12-31T17:59:05Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T18:06:26Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:06:27Z","message":"Started container 921b34c3d56d58bf47416fe90f9018accb87f572e36b09077f8f7b1e55f68fd2 at port 8089 "}
-{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:36510->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T18:06:27Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T18:06:27Z","message":"Removed container 921b34c3d56d58bf47416fe90f9018accb87f572e36b09077f8f7b1e55f68fd2"}
-{"level":"info","time":"2023-12-31T18:11:26Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:11:27Z","message":"Started container 3f15587413da760c8c5f5cca0401499d6b7406d7dbe365f57411f3120c06ad29 at port 8089 "}
-{"level":"info","time":"2023-12-31T18:11:28Z","message":"Removed container 3f15587413da760c8c5f5cca0401499d6b7406d7dbe365f57411f3120c06ad29"}
-{"level":"info","time":"2023-12-31T18:13:00Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:13:01Z","message":"Started container d182f78768a88455a642a4bc3acc33f6106cf56c66ef3f29a2051643b0bdfbaa at port 8089 "}
-{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:54302->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T18:13:01Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T18:13:01Z","message":"Removed container d182f78768a88455a642a4bc3acc33f6106cf56c66ef3f29a2051643b0bdfbaa"}
-{"level":"info","time":"2023-12-31T18:13:17Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:13:18Z","message":"Started container 1355c0965df3ba4dbf4acd60857c7e5ce9dd62b94361d077cd16bd8dad34a644 at port 8089 "}
-{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:43352->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T18:13:18Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T18:13:18Z","message":"Removed container 1355c0965df3ba4dbf4acd60857c7e5ce9dd62b94361d077cd16bd8dad34a644"}
-{"level":"info","time":"2023-12-31T18:15:52Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:15:53Z","message":"Started container 76ae9876775f285d7c991470c0fd5c3cd7f644b079db00bc21aaa7ca265fd8d7 at port 8089 "}
-{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:51548->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T18:15:53Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T18:15:53Z","message":"Removed container 76ae9876775f285d7c991470c0fd5c3cd7f644b079db00bc21aaa7ca265fd8d7"}
-{"level":"info","time":"2023-12-31T18:26:22Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:26:23Z","message":"Started container 99b0712e38c957998ed5713603485a5e13b5521173222e0e3470f353d900a0cd at port 8089 "}
-{"level":"info","time":"2023-12-31T18:26:23Z","message":"Removed container 99b0712e38c957998ed5713603485a5e13b5521173222e0e3470f353d900a0cd"}
-{"level":"info","time":"2023-12-31T18:26:43Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:26:44Z","message":"Started container bba9cea8b8538de8fd9d36c2113581a0b93e375661762f191878c04926a16be2 at port 8089 "}
-{"level":"info","time":"2023-12-31T18:26:44Z","message":"Removed container bba9cea8b8538de8fd9d36c2113581a0b93e375661762f191878c04926a16be2"}
-{"level":"info","time":"2023-12-31T18:26:51Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T18:26:52Z","message":"Started container 9d5f7225f0c6be3df332c9e584ba4ffdbdf7a828596f06ea6b960e4cdfd87bf4 at port 8089 "}
-{"level":"info","time":"2023-12-31T18:26:52Z","message":"Removed container 9d5f7225f0c6be3df332c9e584ba4ffdbdf7a828596f06ea6b960e4cdfd87bf4"}
-{"level":"info","time":"2023-12-31T22:10:03Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T22:10:04Z","message":"Started container bbcfb986c21ea67972a2be21c5b6c0126058cb74412c8b6d1e205b2b96b7bc6d at port 8089 "}
-{"level":"info","time":"2023-12-31T22:10:06Z","message":"Removed container bbcfb986c21ea67972a2be21c5b6c0126058cb74412c8b6d1e205b2b96b7bc6d"}
-{"level":"info","time":"2023-12-31T22:55:24Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T22:55:25Z","message":"Started container 1f5eb69b91728cf0a02f9066fbdebf4c22823db3209b66f151d81808414f573f at port 8089 "}
-{"level":"panic","error":"rpc error: code = Unavailable desc = connection error: desc = \"error reading server preface: read tcp 127.0.0.1:36278->127.0.0.1:8089: read: connection reset by peer\"","time":"2023-12-31T22:55:25Z","message":"Error getting job response"}
-{"level":"info","time":"2023-12-31T22:56:30Z","message":"Image built."}
-{"level":"error","error":"Error response from daemon: driver failed programming external connectivity on endpoint admiring_napier (8d26d6dc528d5354037244e665a9d34ac5c56887ee11c6412b015c669dd28f52): Bind for 127.0.0.1:8089 failed: port is already allocated","time":"2023-12-31T22:56:30Z","message":"Unable to start container with port 8089"}
-{"level":"error","error":"Error response from daemon: driver failed programming external connectivity on endpoint admiring_napier (8d26d6dc528d5354037244e665a9d34ac5c56887ee11c6412b015c669dd28f52): Bind for 127.0.0.1:8089 failed: port is already allocated","time":"2023-12-31T22:56:30Z","message":"Could not build engine."}
-{"level":"info","time":"2023-12-31T22:57:59Z","message":"Image built."}
-{"level":"info","time":"2023-12-31T22:57:59Z","message":"Started container 7bf421c97b6b218f5ef8c58602b7e13151bbbb7a0168e92b898e7d4db7c3d2d4 at port 8089 "}
-{"level":"info","time":"2023-12-31T22:58:00Z","message":"Removed all containers"}
+{"level":"info","time":"2024-01-01T11:05:49Z","message":"Image built."}
+{"level":"info","time":"2024-01-01T11:05:51Z","message":"Started container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75 at port 8089 "}
+{"level":"error","error":"context deadline exceeded","time":"2024-01-01T11:05:51Z","message":"Failed to dial to container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75 on port 8089"}
+{"level":"info","time":"2024-01-01T11:05:51Z","message":"Removed container 51855376c61aaa32ed17eff8762a4a458665ed61e251f656155aa6a0f939fa75"}
+{"level":"error","error":"context deadline exceeded","time":"2024-01-01T11:05:51Z","message":"Could not build engine."}

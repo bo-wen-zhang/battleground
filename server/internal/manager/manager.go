@@ -59,6 +59,7 @@ func (man *Manager) EstablishEngineConn(containerID, port string) (*grpc.ClientC
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)),
+		grpc.WithBlock(), //Make dial context a blocking call
 	}
 
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
