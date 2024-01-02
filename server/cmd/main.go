@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
 
 	pb "battleground-server/engine_service"
 	"battleground-server/internal/manager"
@@ -69,6 +70,14 @@ func main() {
 		}
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		man.ContainerLogs()
+	}()
+
 	res, err := man.Engines[0].Stub.GetProgramResult(context.Background(), &pb.Program{
 		UserId:     69,
 		SourceCode: "print(\"Hello World\")",
@@ -77,6 +86,8 @@ func main() {
 		logger.Panic().Err(err).Msg("Error getting job response")
 	}
 	fmt.Println(res)
+
+	wg.Wait()
 
 	man.RemoveAllContainers()
 }

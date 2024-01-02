@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"battleground-engine/worker"
 
@@ -78,9 +79,16 @@ func main() {
 		logger: logger,
 	}
 
-	pb.RegisterEngineServiceServer(serverRegistrar, service)
-	err = serverRegistrar.Serve(lis)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Cannot serve")
+	go func() {
+		pb.RegisterEngineServiceServer(serverRegistrar, service)
+		err = serverRegistrar.Serve(lis)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Cannot serve")
+		}
+	}()
+
+	for {
+		time.Sleep(2 * time.Second)
+		fmt.Println("lets gooooo")
 	}
 }

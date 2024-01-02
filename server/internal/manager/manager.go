@@ -57,15 +57,14 @@ func (man *Manager) EstablishEngineConn(containerID, port string) (*grpc.ClientC
 	defer cancel()
 	serverAddress := "127.0.0.1:" + port
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)),
-		grpc.WithBlock(), //Make dial context a blocking call
+		grpc.WithTransportCredentials(insecure.NewCredentials()),                // No tls for now
+		grpc.WithUnaryInterceptor(timeout.UnaryClientInterceptor(timeoutValue)), // Set request deadline
+		grpc.WithBlock(), // Make dial context a blocking call
 	}
 
 	conn, err := grpc.DialContext(ctx, serverAddress, opts...)
 	if err != nil {
-		man.logger.Error().Err(err).Msgf("Failed to dial to container %s on port %s", containerID, port)
-		return nil, err
+		return nil, fmt.Errorf("EstablishEngineConn: Failed to dial engine id %s port %s: %w", containerID, port, err)
 	}
 	return conn, nil
 }
@@ -202,37 +201,44 @@ func (man *Manager) RemoveAllContainers() error {
 	return nil
 }
 
-// TODO: Here I should remove engine container from docker if it crashes
-// Also this is not currently being used.
-func (man *Manager) ContainerLogs(containerID string) error {
+// Currently not used.
+func (man *Manager) EngineLogs() error {
+	containerID := man.Engines[0].containerID //This line is temporary
 
-	go func() {
-		out, err := man.dockerClient.ContainerLogs(man.ctx, containerID, types.ContainerLogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:     true,
-		})
-		if err != nil {
-			fmt.Println("Error getting container logs:", err)
-			return
-		}
-		defer out.Close()
-		scanner := bufio.NewScanner(out)
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-	}()
+	out, err := man.dockerClient.ContainerLogs(man.ctx, containerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+	})
+	if err != nil {
+		fmt.Println("Error getting container logs:", err)
+		return err
+	}
+	defer out.Close()
+	scanner := bufio.NewScanner(out)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	return nil
+}
 
+// Blocking until an engine is stopped or removed, removes engine from manager's list.
+// This function also handles closing the manager's gRPC connection to the engine.
+// Lastly, it should signal the manager to build a new engine.
+func (man *Manager) WaitEngineShutdown(containerID string) (int64, error) {
+	containerID = man.Engines[0].containerID //This line is temporary
+	var status container.WaitResponse
 	statusCh, errCh := man.dockerClient.ContainerWait(man.ctx, containerID, container.WaitConditionNotRunning)
 	select {
 	case err := <-errCh:
 		if err != nil {
-			fmt.Println("Error waiting for container:", err)
-			return err
+			return 0, fmt.Errorf("HandleEngineShutdown: Error receiving engine status code: %w", err)
 		}
-	case status := <-statusCh:
-		man.logger.Info().Msgf("Container status code %#+v", status.StatusCode)
+	case status = <-statusCh:
 	}
-
-	return nil
+	return status.StatusCode, nil
 }
+
+// function to build n number of engines
+
+// function to monitor the engines, and build a new one each time an engine shuts down
