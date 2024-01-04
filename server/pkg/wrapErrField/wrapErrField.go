@@ -13,31 +13,39 @@ type wrapError struct {
 	fields []interface{}
 }
 
-func (e wrapError) Error() string {
+func (e *wrapError) Error() string {
 	return e.msg
 }
 
-func Unwrap(err error) error {
-	if prev, ok := err.(*wrapError); ok {
-		return prev.err
-	}
-	return errors.Unwrap(err)
+func (e *wrapError) Unwrap() error {
+	return e.err
 }
 
-// Fields are unwrapped from the top of the stack to the bottom.
+// Fields are unwrapped and flattened from the top of the stack to the bottom.
+// This function is capable of unwrapping joined errors that implement Unwrap() []error
+// The order of fields return is deterministic
 func Fields(err error) []interface{} {
-	prev, ok := err.(*wrapError)
-	if !ok {
-		return []interface{}{}
-	}
-	fields := prev.fields
+	curr := err
+	fields := []interface{}{}
 	for {
-		next, ok := prev.err.(*wrapError)
-		if !ok {
+		if curr == nil {
 			return fields
 		}
-		fields = append(fields, next.fields...)
-		prev = next
+		//switch curr.(type) {
+		if _, ok := curr.(*wrapError); ok {
+			fields = append(fields, curr.(*wrapError).fields...)
+		} else {
+			curr, ok := curr.(interface {
+				Unwrap() []error
+			})
+			if ok && curr != nil {
+				fmt.Println("Hello")
+				for _, e := range curr.Unwrap() {
+					fields = append(fields, Fields(e)...)
+				}
+			}
+		}
+		curr = errors.Unwrap(curr)
 	}
 }
 

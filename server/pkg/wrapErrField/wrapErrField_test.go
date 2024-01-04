@@ -2,6 +2,7 @@ package wrapErrField
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,21 +10,22 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var ErrSomeError = errors.New("some error")
+var mockError = errors.New("some error")
 
-func TestManyFields(t *testing.T) {
+var mockFields = []interface{}{"name", "John", "age", 23, "gender", "M"}
+
+var mockWrappedError = WrapMsgAndFields("some message", mockError, mockFields)
+
+func getMockWrappedError() error {
+	return mockWrappedError
+}
+
+func TestFromFuncReturn(t *testing.T) {
 	b := strings.Builder{}
 	logger := zerolog.New(&b)
 	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
 
-	err := func() error {
-		fields := []interface{}{
-			"name", "John",
-			"age", 23,
-			"gender", "M",
-		}
-		return WrapMsgAndFields("some message", ErrSomeError, fields)
-	}()
+	err := getMockWrappedError()
 
 	logger.Info().Fields(Fields(err)).Send()
 
@@ -32,36 +34,14 @@ func TestManyFields(t *testing.T) {
 	}
 }
 
-func TestMultipleFields(t *testing.T) {
+func TestErrorf(t *testing.T) {
 	b := strings.Builder{}
 	logger := zerolog.New(&b)
-	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23}\n"
+	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
 
-	err := func() error {
-		fields := []interface{}{
-			"name", "John", "age", 23,
-		}
-		return WrapMsgAndFields("some message", ErrSomeError, fields)
-	}()
+	err := fmt.Errorf("some error: %w", mockWrappedError)
 
 	logger.Info().Fields(Fields(err)).Send()
-
-	if b.String() != expected {
-		t.Errorf("Logged %s, expected %s", b.String(), expected)
-	}
-}
-
-func TestCallStackHeightTwo(t *testing.T) {
-	b := strings.Builder{}
-	logger := zerolog.New(&b)
-	expected := "{\"level\":\"info\",\"age\":23,\"name\":\"John\"}\n"
-
-	err := func() error {
-		return WrapMsgAndFields("some message", ErrSomeError, []interface{}{"name", "John"})
-	}()
-	newErr := WrapMsgAndFields("some message", err, []interface{}{"age", 23})
-
-	logger.Info().Fields(Fields(newErr)).Send()
 
 	if b.String() != expected {
 		t.Errorf("Logged %s, expected %s", b.String(), expected)
@@ -71,15 +51,42 @@ func TestCallStackHeightTwo(t *testing.T) {
 func TestUnwrap(t *testing.T) {
 	b := strings.Builder{}
 	logger := zerolog.New(&b)
-	expected := "{\"level\":\"info\",\"name\":\"John\"}\n"
+	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
 
-	err := func() error {
-		return WrapMsgAndFields("some message", ErrSomeError, []interface{}{"name", "John"})
-	}()
-	newErr := WrapMsgAndFields("some message", err, []interface{}{"age", 23})
+	err := fmt.Errorf("some %s error: %w", "", mockWrappedError)
 
-	newErr = Unwrap(newErr)
-	logger.Info().Fields(Fields(newErr)).Send()
+	err = errors.Unwrap(err)
+
+	logger.Info().Fields(Fields(err)).Send()
+
+	if b.String() != expected {
+		t.Errorf("Logged %s, expected %s", b.String(), expected)
+	}
+}
+
+func TestWrapFields(t *testing.T) {
+	b := strings.Builder{}
+	logger := zerolog.New(&b)
+	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
+
+	err := WrapFields(errors.New("some error"), mockFields)
+
+	logger.Info().Fields(Fields(err)).Send()
+
+	if b.String() != expected {
+		t.Errorf("Logged %s, expected %s", b.String(), expected)
+	}
+}
+
+func TestWrapFieldsUnwrap(t *testing.T) {
+	b := strings.Builder{}
+	logger := zerolog.New(&b)
+	expected := "{\"level\":\"info\"}\n"
+
+	err := WrapFields(errors.New("some error"), mockFields)
+
+	err = errors.Unwrap(err)
+	logger.Info().Fields(Fields(err)).Send()
 
 	if b.String() != expected {
 		t.Errorf("Logged %s, expected %s", b.String(), expected)
@@ -89,14 +96,31 @@ func TestUnwrap(t *testing.T) {
 func TestPropogate(t *testing.T) {
 	b := strings.Builder{}
 	logger := zerolog.New(&b)
-	expected := "{\"level\":\"info\",\"name\":\"John\"}\n"
+	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
 
 	err := func() error {
-		err := WrapFields(func() error {
-			return WrapMsgAndFields("some message", ErrSomeError, []interface{}{"name", "John"})
-		}(), []interface{}{})
-		return err
+		err := func() error {
+			return WrapFields(mockError, []interface{}{"age", 23, "gender", "M"})
+		}()
+		return WrapFields(err, []interface{}{"name", "John"})
 	}()
+
+	logger.Info().Fields(Fields(err)).Send()
+
+	if b.String() != expected {
+		t.Errorf("Logged %s, expected %s", b.String(), expected)
+	}
+}
+
+func TestUnwrapJoinedErrs(t *testing.T) {
+	b := strings.Builder{}
+	logger := zerolog.New(&b)
+	expected := "{\"level\":\"info\",\"name\":\"John\",\"age\":23,\"gender\":\"M\"}\n"
+
+	err1 := WrapFields(errors.New("error 1"), []interface{}{"name", "John", "age", 23})
+	err2 := WrapFields(errors.New("error 1"), []interface{}{"gender", "M"})
+
+	err := fmt.Errorf("%w %w", err1, err2)
 
 	logger.Info().Fields(Fields(err)).Send()
 
