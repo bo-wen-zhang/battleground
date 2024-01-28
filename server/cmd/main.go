@@ -2,15 +2,13 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"os"
 	"sync"
 
-	pb "battleground-server/engine_service"
 	"battleground-server/internal/manager"
 
+	"github.com/docker/docker/client"
 	"github.com/rs/zerolog"
 )
 
@@ -50,19 +48,17 @@ func main() {
 
 	logger := zerolog.New(logFile).With().Timestamp().Logger()
 
-	man, err := manager.NewManager(imageName, logger)
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Unable to init client")
+	}
+
+	man, err := manager.NewManager(imageName, cli, logger, 1, []string{"8089"})
 	if err != nil {
 		return
 	}
 
 	man.BuildImage(dockerFileName, contextDirSrc)
-	hostPort := "8089"
-
-	err = man.BuildEngine(hostPort)
-	if err != nil {
-		logger.Error().Err(err).Msg("Could not build engine.")
-		return
-	}
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -75,17 +71,9 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		man.ContainerLogs()
-	}()
+		man.MaintainEngines()
 
-	res, err := man.Engines[0].Stub.GetProgramResult(context.Background(), &pb.Program{
-		UserId:     69,
-		SourceCode: "print(\"Hello World\")",
-	})
-	if err != nil {
-		logger.Panic().Err(err).Msg("Error getting job response")
-	}
-	fmt.Println(res)
+	}()
 
 	wg.Wait()
 

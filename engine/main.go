@@ -45,7 +45,7 @@ func (s *engineServer) GetProgramResult(ctx context.Context, req *pb.Program) (*
 	if err != nil {
 		s.logger.Warn().Err(err).Msg("Error executing")
 	}
-
+	s.logger.Info().Msg(res.Stdout.String())
 	return &pb.Result{
 		StandardOutput: res.Stdout.String(),
 		StandardError:  res.Stderr.String(),

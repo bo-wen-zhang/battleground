@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"battleground-server/internal/util"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
+	q "github.com/oleiade/lane/v2"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,16 +28,16 @@ type Engine struct {
 	Stub        pb.EngineServiceClient
 }
 
-func (man *Manager) BuildEngine(port string) error {
+func (man *Manager) BuildEngine(port string) (string, error) {
 	containerID, err := man.CreateEngineContainer(port)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	conn, err := man.EstablishEngineConn(containerID, port)
 	if err != nil {
 		man.RemoveEngineContainer(containerID)
-		return err
+		return "", err
 	}
 
 	stub := pb.NewEngineServiceClient(conn)
@@ -46,8 +48,8 @@ func (man *Manager) BuildEngine(port string) error {
 		Stub:        stub,
 	}
 
-	man.Engines = append(man.Engines, engine)
-	return nil
+	man.Engines[containerID] = engine
+	return containerID, nil
 }
 
 func (man *Manager) EstablishEngineConn(containerID, port string) (*grpc.ClientConn, error) {
@@ -71,27 +73,27 @@ func (man *Manager) EstablishEngineConn(containerID, port string) (*grpc.ClientC
 
 // A manager manages the engines that the server connects to.
 type Manager struct {
-	ImageName    string //names of images
-	dockerClient *client.Client
-	ctx          context.Context
-	logger       zerolog.Logger
-	Engines      []*Engine //slice of engines
+	ImageName           string //names of images
+	dockerClient        *client.Client
+	ctx                 context.Context
+	logger              zerolog.Logger
+	expectedEngineCount int                //indicates the number of active engines that should be managed
+	Engines             map[string]*Engine //map of containerid to engines that are actively running
+	availablePorts      *q.Deque[string]   //ports which can be used by engines for grpc
 }
 
 // Creates a new Manager
 // Returns an error if docker client cannot be created
-func NewManager(imageName string, logger zerolog.Logger) (*Manager, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Unable to init client")
-		return &Manager{}, err
-	}
+func NewManager(imageName string, cli *client.Client, logger zerolog.Logger, expectedEngineCount int, ports []string) (*Manager, error) {
+
 	return &Manager{
-		ImageName:    imageName,
-		dockerClient: cli,
-		ctx:          context.Background(),
-		logger:       logger,
-		Engines:      []*Engine{},
+		ImageName:           imageName,
+		dockerClient:        cli,
+		ctx:                 context.Background(),
+		logger:              logger,
+		Engines:             map[string]*Engine{},
+		availablePorts:      q.NewDeque[string](ports...),
+		expectedEngineCount: expectedEngineCount,
 	}, nil
 }
 
@@ -202,8 +204,8 @@ func (man *Manager) RemoveAllContainers() error {
 }
 
 // Currently not used.
-func (man *Manager) EngineLogs() error {
-	containerID := man.Engines[0].containerID //This line is temporary
+func (man *Manager) EngineLogs(containerID string) error {
+	//containerID := man.Engines[0].
 
 	out, err := man.dockerClient.ContainerLogs(man.ctx, containerID, types.ContainerLogsOptions{
 		ShowStdout: true,
@@ -225,8 +227,12 @@ func (man *Manager) EngineLogs() error {
 // Blocking until an engine is stopped or removed, removes engine from manager's list.
 // This function also handles closing the manager's gRPC connection to the engine.
 // Lastly, it should signal the manager to build a new engine.
-func (man *Manager) WaitEngineShutdown(containerID string) (int64, error) {
-	containerID = man.Engines[0].containerID //This line is temporary
+func (man *Manager) WaitEngineShutdown(containerID string, buildNeeded chan<- string) (int64, error) {
+	defer func() {
+		port := man.Engines[containerID].port
+		delete(man.Engines, containerID)
+		buildNeeded <- port
+	}()
 	var status container.WaitResponse
 	statusCh, errCh := man.dockerClient.ContainerWait(man.ctx, containerID, container.WaitConditionNotRunning)
 	select {
@@ -236,9 +242,57 @@ func (man *Manager) WaitEngineShutdown(containerID string) (int64, error) {
 		}
 	case status = <-statusCh:
 	}
+
 	return status.StatusCode, nil
 }
 
-// function to build n number of engines
-
 // function to monitor the engines, and build a new one each time an engine shuts down
+func (man *Manager) MaintainEngines() {
+	buildNeeded := make(chan string, man.expectedEngineCount)
+	built := make(chan string, man.expectedEngineCount)
+	var wg sync.WaitGroup
+
+	for i := 0; i < man.expectedEngineCount; i++ {
+		port, ok := man.availablePorts.Pop()
+		if !ok {
+			panic(nil)
+		}
+		buildNeeded <- port
+	}
+
+	wg.Add(1)
+	go func() {
+		//Waits for signal that an engine is down
+		for {
+			id := <-built
+			go man.WaitEngineShutdown(id, buildNeeded)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		//Waits for signal to build a new engine
+		for {
+			port := <-buildNeeded
+			//build engine
+			id, err := man.BuildEngine(port)
+			if err != nil {
+				panic(err)
+			}
+			built <- id
+			//for testing purposes
+			res, err := man.Engines[id].Stub.GetProgramResult(context.Background(), &pb.Program{
+				UserId:     69,
+				SourceCode: "print(\"Helloo World\")",
+			})
+			if err != nil {
+				man.logger.Panic().Err(err).Msg("Error getting job response")
+			}
+			fmt.Println(res)
+			//
+		}
+
+	}()
+
+	wg.Wait()
+}
